@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Nuevo Estudiante',
 };
  
-export default async function Page() {
+export default function Page() {
  
   return (
     <main>

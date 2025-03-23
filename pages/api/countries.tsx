@@ -7,13 +7,11 @@ export default async (req: NextApiRequest, res: NextApiResponse) => {
     try {
         const client = await clientPromise;
         const db = client.db("educational_support");
-        const students = await db
-            .collection("students")
+        const countries = await db
+            .collection("countries")
             .find({})
-            .sort("lastName")
-            .limit(10)
             .toArray();
-        res.json(students);
+        res.json(countries);
     } catch (e) {
         console.error(e);
     }

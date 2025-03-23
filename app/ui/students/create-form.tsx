@@ -1,18 +1,14 @@
-'use client'
-
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
-import { createStudent, State } from '@/lib/actions';
+import { createStudent } from '@/lib/actions';
+import { getCountries } from '@/lib/data';
 import { number } from 'zod';
 import Address from '@/app/ui/students/address';
-import { useActionState } from 'react';
-
 
 export default async function Form() {
-  const initialState: State = { message: null, errors: {} };
-  const [state, formAction] = useActionState(createStudent, initialState)
-    
-  return <form action={formAction}>
+  const countries = await getCountries();
+  
+  return <form action={createStudent}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         <h1>Datos Personales</h1>
         {/* Nombre del Estudiante */}
@@ -22,11 +18,11 @@ export default async function Form() {
           </label>
           <div className="relative">
             <input
-              id="fistName"
-              name="fistName"
+              id="firstName"
+              name="firstName"
               type="string"
               placeholder="Nombre del estudiante"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+              className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
               required
             />
           </div>
@@ -42,7 +38,7 @@ export default async function Form() {
               name="lastName"
               type="string"
               placeholder="Apellidos del estudiante"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+              className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
               required
             />
           </div>
@@ -58,7 +54,7 @@ export default async function Form() {
               name="identity"
               type="string"
               placeholder="Número de Identidad"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+              className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
               required
             />
           </div>
@@ -74,19 +70,65 @@ export default async function Form() {
               name="bdate"
               type="date"
               placeholder="now()"
-              className="peer block w-full rounded-md border border-gray-200 py-2 pl-10 text-sm outline-2 placeholder:text-gray-500"
+              className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
               required
             />
           </div>
         </div>
         {/* Dirección */}
         <div className="mb-4">
-          <label htmlFor="student" className="mb-2 block text-sm font-medium">
+          <label htmlFor="student" className="mb-2 block text-sm font-medium border-t-2 pt-2">
             Dirección
           </label>
-          <Address />
+          <Address countries={countries}/>
         </div>
-
+     
+      {/* Nombre del Encargado Legal */}
+      <div className="mb-4">
+        <label htmlFor="student" className="mb-2 block text-sm font-medium  border-t-2 pt-2">
+          Nombre completo del Encargado
+        </label>
+        <div className="relative">
+          <input
+            id="tutorFirstName"
+            name="tutorFirstName"
+            type="string"
+            placeholder="Nombre del Encargado"
+            className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
+            required
+          />
+        </div>
+      </div>
+      {/* Apellidos del Estudiante */}
+      <div className="mb-4">
+        <label htmlFor="student" className="mb-2 block text-sm font-medium">
+          Teléfono
+        </label>
+        <div className="relative">
+          <input
+            id="phone"
+            name="phone"
+            type="phone"
+            placeholder="Número de teléfono"
+            className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
+            required
+          />
+        </div>
+      </div>
+      <div className="mb-4">
+        <label htmlFor="student" className="mb-2 block text-sm font-medium">
+          Correo electrónico
+        </label>
+        <div className="relative">
+          <input
+            id="tutorEmail"
+            name="tutorEmail"
+            type="email"
+            placeholder="correo@electronico.com"
+            className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
+            required
+          />
+        </div>
       </div>
       <div className="mt-6 flex justify-end gap-4">
         <Link
@@ -97,6 +139,7 @@ export default async function Form() {
         </Link>
         <Button type="submit">Agregar Estudiante</Button>
       </div>
-    </form>
+      </div>
+      </form>
   ;
 }

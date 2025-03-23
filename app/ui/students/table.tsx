@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { UpdateStudent, DeleteStudent } from '@/app/ui/students/buttons';
-import { fetchFilteredStudents} from '@/lib/data';
+import { fetchFilteredStudents } from '@/lib/data';
 
 export default async function StudentTable({
   query,
@@ -67,6 +67,7 @@ export default async function StudentTable({
                 </th>
                 <th scope="col" className="relative py-3 pl-6 pr-3">
                   <span className="sr-only">Edit</span>
+                  Editar
                 </th>
               </tr>
             </thead>
