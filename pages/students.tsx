@@ -1,4 +1,3 @@
-import { ObjectId } from "mongodb";
 import clientPromise from "../lib/mongodb";
 import { GetStaticProps } from 'next';
 
@@ -19,6 +18,7 @@ interface StudentsProps {
 
 
 export default function Students({ students }: StudentsProps) {
+  
    return (
        <div>
            <h1>Students List</h1>
@@ -37,7 +37,6 @@ export default function Students({ students }: StudentsProps) {
        </div>
    );
 };
-
 
 export const getStaticProps: GetStaticProps<StudentsProps> = async () => {
    try {
