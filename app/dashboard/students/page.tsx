@@ -5,11 +5,6 @@ import { CreateStudent } from '@/app/ui/students/buttons';
 import { StudentsTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchStudentsPages } from '@/lib/data';
-import { Metadata } from 'next';
- 
-export const metadata: Metadata = {
-  title: 'Estudiantes',
-};
 
 export default async function Page(props: {
   searchParams?: Promise<{

@@ -1,4 +1,4 @@
-import Form from '@/app/ui/students/create-form';
+import Form from '@/app/ui/student-file/create-value-form';
 
 export default function Page() {
  

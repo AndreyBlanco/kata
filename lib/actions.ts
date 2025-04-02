@@ -1,5 +1,8 @@
 'use server'
- 
+
+import clientPromise from "../lib/mongodb";
+import { redirect } from 'next/navigation';
+
 export async function createStudent(formData: FormData) { 
   const rawFormData = {
     fName: formData.get('firstName'),
@@ -8,9 +11,26 @@ export async function createStudent(formData: FormData) {
     bdate: formData.get('bdate'),
     country: formData.get('country'),
     state: formData.get('state'),
+    dep: formData.get('dep'),
+    district: formData.get('dist'),
+    ward: formData.get('barrio'),
+    street: formData.get('senas'),
+    tutor: formData.get('tutorFirstName'),
+    tutorPhone: formData.get('tutorPhone'),
+    tutorEmail: formData.get('tutorEmail'),
 
   };
   console.log(rawFormData);
+  try {
+    const client = await clientPromise;
+    client.db("educational_support")
+        .collection("students")
+        .insertOne(rawFormData);
+  } catch (e) {
+        console.error(e);
+  }
+
+  redirect('/dashboard/students');
 }
 
 /*

@@ -1,6 +1,7 @@
 import Image from 'next/image';
-import { UpdateStudent, DeleteStudent } from '@/app/ui/students/buttons';
+import { StudentFile } from '@/app/ui/students/buttons';
 import { fetchFilteredStudents } from '@/lib/data';
+
 
 export default async function StudentTable({
   query,
@@ -10,6 +11,7 @@ export default async function StudentTable({
   currentPage: number;
 }) {
   const students = await fetchFilteredStudents(query, currentPage);
+ 
  
   return (
     <div className="mt-6 flow-root">
@@ -32,20 +34,19 @@ export default async function StudentTable({
                             className="mr-2 rounded-full"
                             width={28}
                             height={28}
-                            alt={`Foto de perfil de ${student.firstname}`}
+                            alt={`Foto de perfil de ${student.fName}`}
                           />
-                          <p>{student.firsName}</p>
+                          <p>{student.fName}</p>
                         </div>
-                        <p className="text-md text-gray-500">{student.firstName} {student.lastName}</p>
+                        <p className="text-md text-gray-500">{student.fName} {student.lName}</p>
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-between pt-4">
                       <div>
-                        <p>{student.grade}</p>
+                        <p>{calculateAge(student.bdate)}</p>
                       </div>
                       <div className="flex justify-end gap-2">
-                        <UpdateStudent id={student.id} />
-                        <DeleteStudent id={student.id} />
+                        <StudentFile id={student._id.toString()} />
                       </div>
                     </div>
                   </div>
@@ -60,9 +61,6 @@ export default async function StudentTable({
                   Estudiante
                 </th>
                 <th scope="col" className="px-3 py-5 font-medium">
-                  Grado
-                </th>
-                <th scope="col" className="px-3 py-5 font-medium">
                   Edad
                 </th>
                 <th scope="col" className="relative py-3 pl-6 pr-3">
@@ -72,7 +70,8 @@ export default async function StudentTable({
               </tr>
             </thead>
             <tbody className="bg-white">
-              {students?.map((student) => (
+              {students?.map((student) => {
+                return (
                 <tr
                   key={student._id.toString()}
                   className="w-full border-b py-3 text-sm last-of-type:border-none [&:first-child>td:first-child]:rounded-tl-lg [&:first-child>td:last-child]:rounded-tr-lg [&:last-child>td:first-child]:rounded-bl-lg [&:last-child>td:last-child]:rounded-br-lg"
@@ -84,25 +83,21 @@ export default async function StudentTable({
                         className="rounded-full"
                         width={28}
                         height={28}
-                        alt={`Foto de perfil de ${student.firstName}`}
+                        alt={`Foto de perfil de ${student.fName}`}
                       />
-                      <p>{student.firstName} {student.lastName}</p>
+                      <p>{student.fName} {student.lName}</p>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
-                    {student.grade}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-3">
-                    {student.age}
+                    {calculateAge(student.bdate)}
                   </td>
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex justify-end gap-3">
-                      <UpdateStudent id={student.id} />
-                      <DeleteStudent id={student.id} />
+                      <StudentFile id={student._id.toString()} />
                     </div>
                   </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         </div>
@@ -110,3 +105,17 @@ export default async function StudentTable({
     </div>
   );
 }
+
+function calculateAge (bdate: Date) {
+  var hoy = new Date();
+  var cumpleanos = new Date(bdate);
+  var edad = hoy.getFullYear() - cumpleanos.getFullYear();
+  var m = hoy.getMonth() - cumpleanos.getMonth();
+
+  if (m < 0 || (m === 0 && hoy.getDate() < cumpleanos.getDate())) {
+      edad--;
+  }
+
+  return edad;
+} 
+

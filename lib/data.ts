@@ -1,4 +1,5 @@
 import clientPromise from "../lib/mongodb";
+import { ObjectId } from 'mongodb';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -22,12 +23,11 @@ export async function fetchFilteredStudents(
     const students = await db
         .collection("students")
         .find({})
-        .sort("lastName")
+        .sort("lName")
         .limit(1000)
         .toArray();
 
     /* const students = await apiStudents();*/
-    console.log(students);
     return students;
   } catch (e) {
       console.error(e);
@@ -69,20 +69,22 @@ export async function getCountries() {
 
 }
 
-export async function getStates(code: string) {
-  
+export async function fetchStudentById( id: string ) {
+ 
+  const oId = new ObjectId(id);
+
   try {
     const client = await clientPromise;
     const db = client.db("educational_support");
-    const states = await db
-      .collection("states")
-      .find({"code":code})
+    const student = await db
+      .collection("students")
+      .find({_id: oId})
       .toArray();
      
-    return states;
+    return JSON.parse(JSON.stringify(student));
   } catch (e) {
       console.log(e);
-    throw new Error('Failed to fetch states.');
+    throw new Error('Failed to fetch student.');
   }
 
 }
