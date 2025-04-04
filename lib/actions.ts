@@ -2,6 +2,7 @@
 
 import clientPromise from "../lib/mongodb";
 import { redirect } from 'next/navigation';
+import { ObjectId } from 'mongodb';
 
 export async function createStudent(formData: FormData) { 
   const rawFormData = {
@@ -31,6 +32,31 @@ export async function createStudent(formData: FormData) {
   }
 
   redirect('/dashboard/students');
+}
+
+
+export async function createStudentValue(formData: FormData) { 
+  const rawFormData = {
+     valorado: "SI",
+    invierte: formData.get('status')
+   };
+
+  const sId = formData.get('studentId');
+
+  const oId = new ObjectId(sId);
+  
+  console.log(rawFormData);
+  
+  try {
+    const client = await clientPromise;
+    client.db("educational_support")
+        .collection("students")
+        .findOneAndUpdate({ _id: oId }, {"$set":{valoracion: rawFormData}});
+  } catch (e) {
+        console.error(e);
+  }
+
+  redirect(`/dashboard/${sId}/value`);
 }
 
 /*

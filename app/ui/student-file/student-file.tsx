@@ -24,12 +24,13 @@ export function StudentValue(st)
   const student = st[0];
   return <div>
     {student?.map((stud) => {
+      
       if (!stud.valoracion) {
         return (
           <div key={stud._id} className="rounded-md bg-gray-50 p-4 ">
-            <h1>{stud.fName} {stud.lName}</h1>
+            <h1>{stud.fName} {stud.lName} {stud._id}</h1>
             <div className="pb-5"> No cuenta con una Valoracion Integral</div>
-            < StudentValueButton />
+            < StudentValueButton {...stud._id}/>
           </div>
         )}
       else {  
