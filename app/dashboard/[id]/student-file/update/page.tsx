@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 import { updateStudent } from '@/lib/actions';
 import { getCountries } from '@/lib/data';
-import Address from '@/app/ui/students/address';
+import { AddressUpdate } from '@/app/ui/students/address';
 
  
 export default async function Page(props: { params: Promise<{ id: ObjectId }> }) {
@@ -25,11 +25,14 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
     const student = st[0];
     const countries = await getCountries();
 
+    const data = {student, countries};
+
     return (
         <div>
             {student?.map((stud) => {
                 return(
                     <form action={updateStudent}>
+                    <input id="studentId" name="studentId" type="hidden" value={stud._id}/>
                     <div className="rounded-md bg-gray-50 p-4 md:p-6">
                         <h1>Datos Personales</h1>
                         {/* Nombre del Estudiante */}
@@ -42,8 +45,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="firstName"
                             name="firstName"
                             type="string"
-                            placeholder={stud.fName}
-                            defaultValue={stud.fName}
+                            placeholder={stud.datos.fName}
+                            defaultValue={stud.datos.fName}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2"
                             required
                             />
@@ -59,8 +62,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="lastName"
                             name="lastName"
                             type="string"
-                            placeholder={stud.lName}
-                            defaultValue={stud.lName}
+                            placeholder={stud.datos.lName}
+                            defaultValue={stud.datos.lName}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                             />
@@ -76,8 +79,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="identity"
                             name="identity"
                             type="string"
-                            placeholder={stud.ced}
-                            defaultValue={stud.ced}
+                            placeholder={stud.datos.ced}
+                            defaultValue={stud.datos.ced}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                             />
@@ -93,8 +96,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="bdate"
                             name="bdate"
                             type="date"
-                            placeholder={stud.bdate}
-                            defaultValue={stud.bdate}
+                            placeholder={stud.datos.bdate}
+                            defaultValue={stud.datos.bdate}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                             />
@@ -105,7 +108,7 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                         <label htmlFor="student" className="mb-2 block text-sm font-medium border-t-2 pt-2">
                             Dirección
                         </label>
-                        <Address countries={countries}/>
+                        <AddressUpdate {...data}/>
                         </div>
                     
                     {/* Nombre del Encargado Legal */}
@@ -118,8 +121,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="tutorFirstName"
                             name="tutorFirstName"
                             type="string"
-                            placeholder={stud.tutor}
-                            defaultValue={stud.tutor}
+                            placeholder={stud.datos.tutor}
+                            defaultValue={stud.datos.tutor}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                         />
@@ -135,8 +138,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="tutorPhone"
                             name="tutorPhone"
                             type="phone"
-                            placeholder={stud.tutorPhone}
-                            defaultValue={stud.tutorPhone}
+                            placeholder={stud.datos.tutorPhone}
+                            defaultValue={stud.datos.tutorPhone}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                         />
@@ -151,8 +154,8 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                             id="tutorEmail"
                             name="tutorEmail"
                             type="email"
-                            placeholder={stud.tutorEmail}
-                            defaultValue={stud.tutorEmail}
+                            placeholder={stud.datos.tutorEmail}
+                            defaultValue={stud.datos.tutorEmail}
                             className="peer block w-full rounded-md border border-gray-200 py-2 pl-3 text-sm outline-2 placeholder:text-gray-500"
                             required
                         />

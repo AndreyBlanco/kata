@@ -80,7 +80,7 @@ export async function fetchStudentById( id: string ) {
       .collection("students")
       .find({_id: oId})
       .toArray();
-     
+    
     return JSON.parse(JSON.stringify(student));
   } catch (e) {
       console.log(e);

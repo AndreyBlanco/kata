@@ -11,16 +11,15 @@ export default async function StudentTable({
   currentPage: number;
 }) {
   const students = await fetchFilteredStudents(query, currentPage);
- 
- 
+   
   return (
     <div className="mt-6 flow-root">
       <div className="inline-block min-w-full align-middle">
         <div className="rounded-lg bg-gray-50 p-2 md:pt-0">
           <div className="md:hidden">
             {students?.map((student) => {
-              if (student.image_url == null) {
-                student.image_url = '/imageTemplate.png'
+              if (student.datos.image_url == null) {
+                student.datos.image_url = '/imageTemplate.png'
                 return(
                   <div
                     key={student._id.toString()}
@@ -30,20 +29,20 @@ export default async function StudentTable({
                       <div>
                         <div className="mb-2 flex items-center">
                           <Image
-                            src={student.image_url}
+                            src={student.datos.image_url}
                             className="mr-2 rounded-full"
                             width={28}
                             height={28}
-                            alt={`Foto de perfil de ${student.fName}`}
+                            alt={`Foto de perfil de ${student.datos.fName}`}
                           />
                           <p>{student.fName}</p>
                         </div>
-                        <p className="text-md text-gray-500">{student.fName} {student.lName}</p>
+                        <p className="text-md text-gray-500">{student.datos.fName} {student.datos.lName}</p>
                       </div>
                     </div>
                     <div className="flex w-full items-center justify-between pt-4">
                       <div>
-                        <p>{calculateAge(student.bdate)}</p>
+                        <p>{calculateAge(student.datos.bdate)}</p>
                       </div>
                       <div className="flex justify-end gap-2">
                         <StudentFile id={student._id.toString()} />
@@ -79,17 +78,17 @@ export default async function StudentTable({
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex items-center gap-3">
                       <Image
-                        src={student.image_url}
+                        src={student.datos.image_url}
                         className="rounded-full"
                         width={28}
                         height={28}
-                        alt={`Foto de perfil de ${student.fName}`}
+                        alt={`Foto de perfil de ${student.datos.fName}`}
                       />
-                      <p>{student.fName} {student.lName}</p>
+                      <p>{student.datos.fName} {student.datos.lName}</p>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-3">
-                    {calculateAge(student.bdate)}
+                    {calculateAge(student.datos.bdate)}
                   </td>
                   <td className="whitespace-nowrap py-3 pl-6 pr-3">
                     <div className="flex justify-end gap-3">

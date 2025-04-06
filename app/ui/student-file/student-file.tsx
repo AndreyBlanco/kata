@@ -1,6 +1,6 @@
 'use client';
 
-import { StudentValueButton } from '@/app/ui/students/buttons';
+import { StudentValueButton, UpdateValueButton } from '@/app/ui/students/buttons';
 import { PencilIcon, PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
@@ -14,10 +14,10 @@ export default function StudentFile(st)
       {student?.map((stud) => {
         return(
         <div key={stud._id} className="rounded-md bg-gray-50 p-4 ">
-          <p>Nombre: {stud.fName} {stud.lName}</p>
-          <p>Número de Identificación: {stud.ced}</p>
-          <p>Dirección: {stud.street}, {stud.ward}, {stud.district}, {stud.dep}, {stud.state}, {stud.country}.</p>
-          <p>Encargado: {stud.tutor}, Tel: {stud.tutorPhone}, Correo: {stud.tutorEmail}</p>
+          <p>Nombre: {stud.datos.fName} {stud.datos.lName}</p>
+          <p>Número de Identificación: {stud.datos.ced}</p>
+          <p>Dirección: {stud.datos.street}, {stud.datos.ward}, {stud.datos.district}, {stud.datos.dep}, {stud.datos.state}, {stud.datos.country}.</p>
+          <p>Encargado: {stud.datos.tutor}, Tel: {stud.datos.tutorPhone}, Correo: {stud.datos.tutorEmail}</p>
           
           <Link
             href={`/dashboard/${stud._id}/student-file/update`}
@@ -40,7 +40,7 @@ export function StudentValue(st)
       if (!stud.valoracion) {
         return (
           <div key={stud._id} className="rounded-md bg-gray-50 p-4 ">
-            <h1>{stud.fName} {stud.lName} {stud._id}</h1>
+            <h1>{stud.datos.fName} {stud.datos.lName} {stud._id}</h1>
             <div className="pb-5"> No cuenta con una Valoracion Integral</div>
             < StudentValueButton {...stud._id}/>
           </div>
@@ -48,9 +48,14 @@ export function StudentValue(st)
       else {  
         return(
           <div key={stud._id} className="rounded-md bg-gray-50 p-4 ">
-            <h1>{stud.fName} {stud.lName}</h1>
-            <div> Valoración</div>
-
+            <h1>{stud.datos.fName} {stud.datos.lName}</h1>
+            <div>
+              <h1>Valoración</h1>
+              <ul className="list-disc list-inside">
+                {stud.valoracion.invierte=="si" && <li>Invierte las palabras</li>}
+              </ul>
+            </div>
+            < UpdateValueButton {...stud._id}/>
           </div>
       )}})}
   </div>
