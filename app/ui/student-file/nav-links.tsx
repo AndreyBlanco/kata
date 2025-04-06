@@ -1,9 +1,10 @@
 'use client';
 
 import {
-  UserGroupIcon,
-  HomeIcon,
-  DocumentDuplicateIcon,
+  IdentificationIcon,
+  ChartBarIcon,
+  ClipboardDocumentListIcon,
+  DocumentCheckIcon,
 } from '@heroicons/react/24/outline';
 
 import Link from 'next/link';
@@ -17,10 +18,10 @@ export default function NavLinks() {
   const pathname = usePathname();
   const sId = window.localStorage.getItem("studentId");
   const links = [
-    { name: 'Perfil', href: "/dashboard/" + sId + "/student-file", icon: HomeIcon},
-    { name: 'Valoración', href: "/dashboard/" + sId + "/value", icon: HomeIcon },
-    { name: 'Dificultades', href:  "/dashboard/" + sId + "/dificulties", icon: HomeIcon },
-    { name: 'Plan', href:  "/dashboard/" + sId + "/plan", icon: HomeIcon},
+    { name: 'Perfil', href: "/dashboard/" + sId + "/student-file", icon: IdentificationIcon},
+    { name: 'Valoración', href: "/dashboard/" + sId + "/value", icon: ClipboardDocumentListIcon },
+    { name: 'Dificultades', href:  "/dashboard/" + sId + "/dificulties", icon: ChartBarIcon },
+    { name: 'Plan', href:  "/dashboard/" + sId + "/plan", icon: DocumentCheckIcon},
   ];
 
   return (

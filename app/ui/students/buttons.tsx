@@ -32,6 +32,7 @@ export function StudentFile( { id }: { id: String } ) {
   );
 }
 
+
 export function StudentValueButton( { id }: { id: String } ) {
 
   console.log(id);

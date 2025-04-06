@@ -2,7 +2,8 @@
 
 import {
   UserGroupIcon,
-  HomeIcon,
+  ListBulletIcon,
+  FolderOpenIcon,
   DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 
@@ -13,8 +14,8 @@ import clsx from 'clsx';
 // Map of links to display in the side navigation.
 // Depending on the size of the application, this would be stored in a database.
 const links = [
-  { name: 'Panel', href: '/dashboard', icon: HomeIcon },
-  { name: 'Lista de Estudiantes', href: '/dashboard/students', icon: UserGroupIcon },
+  { name: 'Panel', href: '/dashboard', icon: FolderOpenIcon },
+  { name: 'Lista de Estudiantes', href: '/dashboard/students', icon: ListBulletIcon },
 ];
 
 export default function NavLinks() {
