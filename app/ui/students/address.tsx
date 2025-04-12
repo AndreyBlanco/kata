@@ -1,7 +1,7 @@
 
 'use client'
 
-import { Countries } from '@/lib/definitions';
+import { Countries } from '@/app/lib/definitions';
 import { useEffect, useState } from 'react';
 
 export default function Address({ countries }: {countries: Countries[]}) {
@@ -182,8 +182,7 @@ export default function Address({ countries }: {countries: Countries[]}) {
 
 export function AddressUpdate(data) {
   const student=data.student;
-  console.log(data);
-  
+    
   const countries=data.countries;
 
   const [selectedCountry, setSelectedCountry] = useState('');

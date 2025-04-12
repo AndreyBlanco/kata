@@ -1,6 +1,6 @@
 'use Server';
 
-import clientPromise from "../../lib/mongodb";
+import clientPromise from "../../app/lib/mongodb";
 import { NextApiRequest, NextApiResponse } from 'next';
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {

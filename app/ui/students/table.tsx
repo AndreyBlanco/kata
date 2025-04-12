@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import { StudentFile } from '@/app/ui/students/buttons';
-import { fetchFilteredStudents } from '@/lib/data';
+import { fetchFilteredStudents } from '@/app/lib/data';
 
 
 export default async function StudentTable({

@@ -1,5 +1,7 @@
-import clientPromise from "../lib/mongodb";
+import clientPromise from "./mongodb";
 import { ObjectId } from 'mongodb';
+import type { User } from '@/app/lib/definitions';
+import { auth } from '@/auth';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -8,26 +10,45 @@ export async function fetchFilteredStudents(
   currentPage: number,
   ) {
 
+  const session = await auth();
+  const user = session?.user.email;
+  const teacher = await getUser(user); 
   const offset = (currentPage - 1) * ITEMS_PER_PAGE;
 
-  /* async function apiStudents() {
-    const url = process.env.STUDENTS_URL;
-    const response = await fetch(url);
-    const data = await response.json();
-    return data;
-  }*/
-
   try {
+
     const client = await clientPromise;
     const db = client.db("educational_support");
     const students = await db
         .collection("students")
-        .find({})
+        .find({teacher:teacher._id})
         .sort("lName")
-        .limit(1000)
         .toArray();
 
-    /* const students = await apiStudents();*/
+    return students;
+  } catch (e) {
+      console.error(e);
+    throw new Error('Failed to fetch students.');
+  }
+
+}
+
+export async function fetchStudents() {
+
+  const session = await auth();
+  const user = session?.user.email;
+  const teacher = await getUser(user);
+
+  try {
+
+    const client = await clientPromise;
+    const db = client.db("educational_support");
+    const students = await db
+        .collection("students")
+        .find({teacher:teacher._id})
+        .sort("lName")
+        .toArray();
+
     return students;
   } catch (e) {
       console.error(e);
@@ -86,5 +107,24 @@ export async function fetchStudentById( id: string ) {
       console.log(e);
     throw new Error('Failed to fetch student.');
   }
+}
 
+
+export async function getUser(email: string): Promise<User | undefined> {
+  
+  try {
+    const client = await clientPromise;
+    const db = client.db("educational_support");
+    const user = await db
+        .collection("teachers")
+        .find({email:email})
+        .toArray();
+    
+    const us = user[0];
+    const data: User = {_id:us._id, name:us.name, email:us.email, password:us.password};
+    return data;
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    
+  }
 }

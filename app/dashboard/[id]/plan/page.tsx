@@ -1,7 +1,8 @@
-import StudentFile from '@/app/ui/student-file/student-file';
+import { StudentPlan } from '@/app/ui/student-file/student-file';
 import { fetchStudentById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 import { ObjectId } from 'mongodb';
+
  
 export default async function Page(props: { params: Promise<{ id: ObjectId }> }) {
     
@@ -17,10 +18,9 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
         notFound();
     }
 
-
     return (
         <div>
-            <StudentFile {...student} />
+            <StudentPlan {...student} />
         </div>
     );
 }

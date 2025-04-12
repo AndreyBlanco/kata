@@ -4,7 +4,7 @@ import Table from '@/app/ui/students/table';
 import { CreateStudent } from '@/app/ui/students/buttons';
 import { StudentsTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
-import { fetchStudentsPages } from '@/lib/data';
+import { fetchStudentsPages } from '@/app/lib/data';
 
 export default async function Page(props: {
   searchParams?: Promise<{

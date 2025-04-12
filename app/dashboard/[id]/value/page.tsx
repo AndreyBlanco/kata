@@ -1,5 +1,5 @@
 import { StudentValue } from '@/app/ui/student-file/student-file';
-import { fetchStudentById } from '@/lib/data';
+import { fetchStudentById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 import { ObjectId } from 'mongodb';
 

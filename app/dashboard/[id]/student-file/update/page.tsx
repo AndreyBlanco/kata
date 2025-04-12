@@ -1,10 +1,10 @@
-import { fetchStudentById } from '@/lib/data';
+import { fetchStudentById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
 import { ObjectId } from 'mongodb';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
-import { updateStudent } from '@/lib/actions';
-import { getCountries } from '@/lib/data';
+import { updateStudent } from '@/app/lib/actions';
+import { getCountries } from '@/app/lib/data';
 import { AddressUpdate } from '@/app/ui/students/address';
 
  
