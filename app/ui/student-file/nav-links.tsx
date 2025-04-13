@@ -21,7 +21,7 @@ export default function NavLinks() {
     { name: 'Perfil', href: "/dashboard/" + sId + "/student-file", icon: IdentificationIcon},
     { name: 'Valoración', href: "/dashboard/" + sId + "/value", icon: ClipboardDocumentListIcon },
     { name: 'Plan', href:  "/dashboard/" + sId + "/plan", icon: DocumentCheckIcon},
-    { name: 'Report', href:  "/dashboard/" + sId + "/report", icon: ChartBarIcon },
+    { name: 'Informe', href:  "/dashboard/" + sId + "/report", icon: ChartBarIcon },
   ];
 
   return (

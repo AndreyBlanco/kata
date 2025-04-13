@@ -6,6 +6,7 @@ import { Button } from '@/app/ui/button';
 import { updateStudent } from '@/app/lib/actions';
 import { getCountries } from '@/app/lib/data';
 import { AddressUpdate } from '@/app/ui/students/address';
+import { Student } from '@/app/lib/definitions';
 
  
 export default async function Page(props: { params: Promise<{ id: ObjectId }> }) {
@@ -29,10 +30,10 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
 
     return (
         <div>
-            {student?.map((stud) => {
+            {student?.map((stud:Student) => {
                 return(
                     <form action={updateStudent}>
-                    <input id="studentId" name="studentId" type="hidden" value={stud._id}/>
+                    <input id="studentId" name="studentId" type="hidden" value={stud._id.toString()}/>
                     <div className="rounded-md bg-gray-50 p-4 md:p-6">
                         <h1>Datos Personales</h1>
                         {/* Nombre del Estudiante */}

@@ -4,6 +4,7 @@ import { createStudentValue } from '@/app/lib/actions';
 import { ObjectId } from 'mongodb';
 import { fetchStudentById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
+import { Student } from '@/app/lib/definitions';
 import { ContextoAula, Grafia, Motricidad , Visual, Auditiva, Espacio, Tiempo, Madurez, Lectoescritura, Ortograficas, Matematicas } from '@/app/ui/student-file/value-listforms';
 
 export default async function Page(props: { params: Promise<{ id: ObjectId }> }) {
@@ -25,11 +26,11 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
       return (
         <form action={createStudentValue}>
             <div className="rounded-md bg-gray-50 p-4 md:p-6">
-                {stud?.map((st) => {
+                {stud?.map((st:Student) => {
                     return(
                         <div>
-                            <h1>{st.fName} {st.lName}</h1>
-                            <input id="studentId" name="studentId" type="hidden" value={st._id}/>
+                            <h1>{st.datos.fName} {st.datos.lName}</h1>
+                            <input id="studentId" name="studentId" type="hidden" value={st._id.toString()}/>
                         </div>
                     )})}
                 < ContextoAula />

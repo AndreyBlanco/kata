@@ -4,6 +4,7 @@ import { ObjectId } from 'mongodb';
 import Link from 'next/link';
 import { Button } from '@/app/ui/button';
 import { createStudentValue } from '@/app/lib/actions';
+import { Student } from '@/app/lib/definitions';
 import { ContextoAulaUpdate, GrafiaUpdate, MotricidadUpdate, VisualUpdate, AuditivaUpdate, EspacioUpdate, TiempoUpdate, 
     MadurezUpdate, LectoescrituraUpdate, OrtograficasUpdate, MatematicasUpdate } from '@/app/ui/student-file/value-listforms';
 
@@ -24,7 +25,7 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
       }
 
       const stud = student[0];
-      const st = stud?.map((st) => {return(st)});
+      const st = stud?.map((st:Student) => {return(st)});
       const stu = st[0];
         
       return (

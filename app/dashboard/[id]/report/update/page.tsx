@@ -4,6 +4,7 @@ import { createStudentPlan } from '@/app/lib/actions';
 import { ObjectId } from 'mongodb';
 import { fetchStudentById } from '@/app/lib/data';
 import { notFound } from 'next/navigation';
+import { Student } from '@/app/lib/definitions';
 
 export default async function Page(props: { params: Promise<{ id: ObjectId }> }) {
  
@@ -23,12 +24,12 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
 
       return (
         <form action={createStudentPlan}>
-            {stud?.map((st) => {
+            {stud?.map((st:Student) => {
                 return(
                 <div className="rounded-md bg-gray-50 p-4 md:p-6">
                     <div>
                         <h1>{st.datos.fName} {st.datos.lName}</h1>
-                        <input id="studentId" name="studentId" type="hidden" value={st._id}/>
+                        <input id="studentId" name="studentId" type="hidden" value={st._id.toString()}/>
                     </div>            
                     <div className="block border-t-2 py-2">
                         <legend className="flex self-center text-sm font-medium">

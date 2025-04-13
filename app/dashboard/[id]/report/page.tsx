@@ -22,7 +22,6 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
     const stud = student[0];
     
     const session = await auth();
-    const name = session.user.name;
 
     return (
         <div>
@@ -31,7 +30,7 @@ export default async function Page(props: { params: Promise<{ id: ObjectId }> })
                 <h1>Informe final de periodo</h1>
                 </div>
                 <h1>Estudiante: {stud[0].datos.fName} {stud[0].datos.lName}</h1>
-                <h1>Docente: {name} </h1>
+                {session && session.user && <h1>Docente: {session.user.name} </h1>}
             </div>
             <StudentReport {...student} />
         </div>

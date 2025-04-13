@@ -12,7 +12,8 @@ import { ValoracionIntegral } from "../ui/student-file/value-lists";
 
 
 export async function createStudent(formData: FormData) { 
-  const teacher = new ObjectId(formData.get('teacher'));
+  const tId = formData.get('teacher');
+  const teacher = new ObjectId(tId);
   
   const datos = {
     fName: formData.get('firstName'),

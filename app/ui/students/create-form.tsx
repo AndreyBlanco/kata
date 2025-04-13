@@ -8,15 +8,13 @@ import { auth } from '@/auth';
 
 export default async function Form() {
   const countries = await getCountries();
-    const session = await auth();
-    const user = session?.user.email;
-    const teacher = await getUser(user); 
+  const session = await auth();
   
   return <form action={createStudent}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         <h1>Datos Personales</h1>
         {/* Nombre del Estudiante */}
-        <input id="teacher" name="teacher" type="hidden" value={teacher._id}/>
+        {session && session.user && <input id="teacher" name="teacher" type="hidden" value={session.user.id.toString()}/>}
         <div className="mb-4">
           <label htmlFor="student" className="mb-2 block text-sm font-medium">
             Nombre

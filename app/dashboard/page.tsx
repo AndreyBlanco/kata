@@ -6,8 +6,6 @@ import { Button } from '@/app/ui/button';
 export default async function Page() {
 
   const session = await auth();
-  const email = session.user.email;
-  const name = session.user.name;
 
   const students = await fetchStudents();
   
@@ -18,10 +16,10 @@ export default async function Page() {
           <div className="relative p-3">
             <h1 className="bg-gray-200 p-2">Mi Perfil</h1>
             <div className="px-2 pt-2">
-              <h1>Nombre: {name}</h1>
+              {session && session.user && <h1>Nombre: {session.user.name}</h1>}
             </div>
             <div className="px-2">
-              <h1>Correo electrónico: {email}</h1>              
+              {session && session.user && <h1>Correo electrónico: {session.user.email}</h1> }             
             </div>
           </div>
           <div className="relative p-3">
