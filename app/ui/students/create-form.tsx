@@ -5,16 +5,23 @@ import { getCountries, getUser } from '@/app/lib/data';
 import { number } from 'zod';
 import Address from '@/app/ui/students/address';
 import { auth } from '@/auth';
+import { User } from '@/app/lib/definitions';
 
 export default async function Form() {
   const countries = await getCountries();
   const session = await auth();
+  console.log(session);
+  var teacher:User;
+
+  teacher = await getUser(session?.user.email);
+
+  console.log(teacher)
   
   return <form action={createStudent}>
       <div className="rounded-md bg-gray-50 p-4 md:p-6">
         <h1>Datos Personales</h1>
         {/* Nombre del Estudiante */}
-        {session && session.user && <input id="teacher" name="teacher" type="hidden" value={session.user.id.toString()}/>}
+        {session && session.user && <input id="teacher" name="teacher" type="hidden" value={teacher._id.toString()}/>}
         <div className="mb-4">
           <label htmlFor="student" className="mb-2 block text-sm font-medium">
             Nombre

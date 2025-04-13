@@ -13,7 +13,7 @@ export default function StudentFile(st)
   return <div>
       {student?.map((stud) => {
         return(
-        <div key={stud._id} className="rounded-md bg-gray-50 p-4 ">
+        <div key={stud._id} className="rounded-md bg-gray-50 p-4">
           <p>Nombre: {stud.datos.fName} {stud.datos.lName}</p>
           <p>Número de Identificación: {stud.datos.ced}</p>
           <p>Dirección: {stud.datos.street}, {stud.datos.ward}, {stud.datos.district}, {stud.datos.dep}, {stud.datos.state}, {stud.datos.country}.</p>
@@ -21,7 +21,7 @@ export default function StudentFile(st)
           
           <Link
             href={`/dashboard/${stud._id}/student-file/update`}
-            className="flex w-min h-10 gap-3 items-center rounded-lg bg-blue-600 px-4 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+            className="flex w-min h-10 gap-3 items-center rounded-lg bg-blue-600 px-4 mt-3 text-sm font-medium text-white transition-colors hover:bg-blue-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
           >
             <span className="hidden md:block">Actualizar</span>{' '}
             <PencilIcon className="w-5" />

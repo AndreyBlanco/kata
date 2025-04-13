@@ -208,12 +208,11 @@ export async function updateStudent(formData: FormData,) {
                     console.error(e);
               }
             
-              authenticate("none", formData);
             }
                   
         }
  
-        return null;
+        return (redirect(`/login`));
     } catch (error) {
       if (error instanceof AuthError) {
         switch (error.type) {
@@ -225,5 +224,6 @@ export async function updateStudent(formData: FormData,) {
       }
       throw error;
     }
+    
   }
 

@@ -52,7 +52,7 @@ export type Student = {
 };
 
 export type User = {
-  id: ObjectId;
+  _id: ObjectId;
   name: string;
   email: string;
   password: string;
