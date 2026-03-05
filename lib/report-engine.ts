@@ -1,6 +1,7 @@
 // lib/report-engine.ts
 
 import { prisma } from './prisma'
+import { calculateAge } from './utils'
 
 // =============================================
 // TIPOS
@@ -144,7 +145,7 @@ export async function generateReport(
 
   const administrative: AdministrativeSection = {
     studentName: student.name,
-    age: student.age,
+    age: calculateAge(student.birthDate),
     grade: student.grade,
     teacherName: teacher.name,
     centerName: teacher.centerName,
@@ -188,14 +189,17 @@ export async function generateReport(
 // =============================================
 
 function buildAnnualFramework(plan: {
-  planType: string
   activeDifficulties: string[]
   priorityProcesses: string[]
-  annualFocusSummary: string
-  permanentAdjustments: string
-  annualObservations: string
+  strengths: string
+  mediationStrategies: string
+  homeStrategies: string
+  specificStrategies: string
 }): AnnualFrameworkSection {
-  const planTypeLabel = PLAN_TYPE_LABELS[plan.planType] || plan.planType
+  // Adaptación temporal: no existe un campo planType en el modelo,
+  // asumimos un tipo genérico basado en dificultades específicas.
+  const planType = 'difficulty'
+  const planTypeLabel = PLAN_TYPE_LABELS[planType] || 'Dificultades específicas del aprendizaje'
 
   let narrative = `El plan de apoyo se orienta hacia ${planTypeLabel.toLowerCase()}. `
 
@@ -207,26 +211,30 @@ function buildAnnualFramework(plan: {
     narrative += `Los procesos prioritarios de intervención incluyen: ${plan.priorityProcesses.join(', ')}. `
   }
 
-  if (plan.annualFocusSummary) {
-    narrative += `\n\nEnfoque anual: ${plan.annualFocusSummary} `
+  const annualFocusSummary = plan.mediationStrategies || ''
+  const permanentAdjustments = plan.specificStrategies || ''
+  const annualObservations = ''
+
+  if (annualFocusSummary) {
+    narrative += `\n\nEnfoque anual: ${annualFocusSummary} `
   }
 
-  if (plan.permanentAdjustments) {
-    narrative += `\n\nAdecuaciones permanentes: ${plan.permanentAdjustments} `
+  if (permanentAdjustments) {
+    narrative += `\n\nAdecuaciones permanentes: ${permanentAdjustments} `
   }
 
-  if (plan.annualObservations) {
-    narrative += `\n\nObservaciones: ${plan.annualObservations}`
+  if (annualObservations) {
+    narrative += `\n\nObservaciones: ${annualObservations}`
   }
 
   return {
-    planType: plan.planType,
+    planType,
     planTypeLabel,
     activeDifficulties: plan.activeDifficulties,
     priorityProcesses: plan.priorityProcesses,
-    annualFocusSummary: plan.annualFocusSummary,
-    permanentAdjustments: plan.permanentAdjustments,
-    annualObservations: plan.annualObservations,
+    annualFocusSummary,
+    permanentAdjustments,
+    annualObservations,
     narrative: narrative.trim(),
   }
 }
@@ -460,9 +468,8 @@ function buildSupports(
 function buildRecommendations(
   objectiveDevelopment: ObjectiveDevelopmentSection[],
   plan: {
-    planType: string
     activeDifficulties: string[]
-    permanentAdjustments: string
+    specificStrategies: string
   }
 ): RecommendationsSection {
   const suggested: string[] = []
@@ -486,8 +493,8 @@ function buildRecommendations(
     }
   }
 
-  if (plan.permanentAdjustments) {
-    suggested.push(`Mantener las adecuaciones permanentes: ${plan.permanentAdjustments}`)
+  if (plan.specificStrategies) {
+    suggested.push(`Mantener las adecuaciones específicas del plan: ${plan.specificStrategies}`)
   }
 
   suggested.push(

@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 interface Session {
@@ -43,7 +43,7 @@ const SUPPORT_LEVELS = [
   { value: 4, label: 'Nivel 4', description: 'Físico/total — Apoyo completo' },
 ]
 
-export default function RegistrarSesionPage() {
+function RegistrarSesionContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -382,5 +382,19 @@ export default function RegistrarSesionPage() {
         <div className="h-8" />
       </div>
     </div>
+  )
+}
+
+export default function RegistrarSesionPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <p className="text-gray-500">Cargando...</p>
+        </div>
+      }
+    >
+      <RegistrarSesionContent />
+    </Suspense>
   )
 }

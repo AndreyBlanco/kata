@@ -10,6 +10,7 @@ type StudentData = {
   id: string
   name: string
   age: number
+  birthDate: string
   grade: string
   cedula?: string
   medicalDiagnosis?: string
