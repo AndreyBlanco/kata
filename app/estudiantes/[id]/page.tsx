@@ -49,13 +49,17 @@ export default function StudentDetailPage() {
         if (aRes.ok) {
           const aData = await aRes.json()
           if (aData && aData.id) {
-            const hasSubstantive = !!(
-              aData.strengths ||
-              aData.classroomContext ||
-              aData.curricularPerformance ||
-              aData.requiredSupports
-            )
-            setAssessmentStatus(hasSubstantive ? 'complete' : 'started')
+            if (aData.status === 'completed') {
+              setAssessmentStatus('complete')
+            } else {
+              const hasSubstantive = !!(
+                aData.strengths ||
+                aData.classroomContext ||
+                aData.curricularPerformance ||
+                aData.requiredSupports
+              )
+              setAssessmentStatus(hasSubstantive ? 'started' : 'empty')
+            }
           }
         }
 

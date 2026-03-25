@@ -49,9 +49,16 @@ Cada módulo se alimenta del anterior:
 - **Teacher**: docente autenticado. Campos: email, passwordHash, name, centerName, circuit, specialty.
 - **Student**: studentId, name, birthDate, grade, cedula?, medicalDiagnosis?, classroomTeacherName?, guardianName?, guardianPhone?, teacherId.
 - **IntegralAssessment** (1-1 con Student):
+  - `status: String @default("active")` — `"active"` | `"completed"`.
+  - `requiresSupport: Boolean?` — `null`=pendiente | `true` | `false`.
   - elaborationDate, bsaReceivedDate.
   - participants: String[].
-  - classroomContext, institutionalContext, familyContext, strengths, barriers, curricularPerformance, instruments: String[], integralAnalysis, requiredSupports, agreements, followUp.
+  - classroomContext, institutionalContext, familyContext.
+  - strengths, `strengthCodes: String[]`.
+  - barriers, `barrierCodes: String[]`.
+  - curricularPerformance (legacy), instruments: String[], integralAnalysis.
+  - requiredSupports, `supportCodes: String[]`.
+  - agreements, followUp, `followupCodes: String[]`.
 - **StudentSupportPlan** (1-1 con Student):
   - activeDifficulties: String[], priorityProcesses: String[], executiveSubprocesses: String[].
   - strengths, mediationStrategies, homeStrategies, specificStrategies.
@@ -150,6 +157,7 @@ Cada módulo se alimenta del anterior:
 | GET | /api/assessments/[studentId]/curricular-subjects | Tabla de desempeño curricular por asignatura (sección 6) |
 | PUT | /api/assessments/[studentId]/curricular-subjects | Reemplazar tabla curricular completa |
 | GET | /api/assessments/[studentId]/export | Descargar Informe de Valoración Integral como `.docx` |
+| PATCH | /api/assessments/[studentId]/status | Cambiar estado del expediente (`status`, `requiresSupport`) |
 | POST | /api/support-plans/[studentId]/generate | Generar borrador del Plan de Apoyo (no guarda; retorna draft) |
 
 ### Parámetros comunes de los endpoints de catálogo
@@ -466,6 +474,11 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
 - ✅ `lib/valoracion-export.ts` — motor de exportación `.docx` del Informe de Valoración Integral 2026 (11 secciones + firmas, colores y márgenes del template oficial).
 - ✅ `GET /api/assessments/[studentId]/export` — endpoint de descarga que ensambla todos los datos y devuelve el archivo.
 
+### Sesión 7 — completado (25 mar 2026)
+- ✅ Migración `20260325192028_add_assessment_status_and_catalog_codes`: agrega `status`, `requiresSupport`, `strengthCodes[]`, `barrierCodes[]`, `supportCodes[]`, `followupCodes[]` a `IntegralAssessment`.
+- ✅ `PUT /api/assessments/[studentId]` actualizado con los nuevos campos de códigos de catálogo.
+- ✅ `PATCH /api/assessments/[studentId]/status` — nuevo endpoint para cambiar `status` (`active`/`completed`) y `requiresSupport` (`boolean | null`) de forma independiente al contenido.
+
 ### Sesión 6 — completado (25 mar 2026)
 - ✅ Revisión de estructura del Plan de Apoyo (págs. 56-58 del Cuaderno N°4): encabezado + tabla 4 columnas.
 - ✅ `lib/support-plan-generator.ts` — generador de borrador del Plan de Apoyo:
@@ -476,13 +489,19 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
   - Retorna `SupportPlanDraft` con metadata (`_meta`) para la UI.
 - ✅ `POST /api/support-plans/[studentId]/generate` — endpoint que llama al generador y retorna el borrador **sin guardar**. El docente lo edita y confirma con `PUT /api/support-plans/[studentId]`.
 
-### Próximos (sesión 7 en adelante)
+### Próximos (sesión 8 en adelante)
 
-1. **Commit y push a GitHub** del estado actual (sesiones 1-6) para sincronizar con producción.
-2. **Wizard UI `/estudiantes/[id]/valoracion-guiada`** — los 11 pasos con las bibliotecas ya implementadas (Brecha 5).
-3. **Migrar INSTRUMENTS_CATALOG a BD** con flujo de aprobación (`status`: approved/pendingApproval/rejected).
-4. **Implementar INSTITUTIONAL_SUGGESTIONS** para autocompletar institucional (centerName, circuit, etc.).
-5. **Completar herramienta de valoración para TDA, Aprendizaje lento y TANV** (trabajo de contenido).
+1. **UI Expediente de Valoración** — Dashboard `/valoraciones` + espacio de trabajo `/estudiantes/[id]/valoracion` con tabs por sección (Brecha 5).
+2. **Migrar INSTRUMENTS_CATALOG a BD** con flujo de aprobación (`status`: approved/pendingApproval/rejected).
+3. **Implementar INSTITUTIONAL_SUGGESTIONS** para autocompletar institucional (centerName, circuit, etc.).
+4. **Completar herramienta de valoración para TDA, Aprendizaje lento y TANV** (trabajo de contenido).
+
+#### Diseño del Expediente de Valoración (Brecha 5)
+- **`status`**: `"active"` (en proceso) | `"completed"` (cerrado). Reversible en cualquier momento.
+- **`requiresSupport`**: `null` (no decidido) | `true` | `false`. Persiste la decisión de ingreso al sistema.
+- **Flujo de cierre**: Finalizar → modal → `status=completed` → Descargar informe + decidir apoyo.
+- **No wizard lineal**: tabs independientes, guardado por sección, múltiples expedientes activos simultáneos.
+- **Vista**: `/valoraciones` (dashboard global) + `/estudiantes/[id]/valoracion` (espacio de trabajo).
 
 ---
 

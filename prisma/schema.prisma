@@ -242,6 +242,10 @@ model IntegralAssessment {
   elaborationDate       DateTime?
   bsaReceivedDate       DateTime?
 
+  // Estado del expediente
+  status          String    @default("active")  // "active" | "completed"
+  requiresSupport Boolean?                       // null=pendiente | true=sí | false=no
+
   // Sección 2: Participantes
   participants          String[]
 
@@ -250,11 +254,13 @@ model IntegralAssessment {
   institutionalContext   String    @default("")
   familyContext          String    @default("")
 
-  // Sección 4: Fortalezas (FUENTE DE VERDAD inicial)
+  // Sección 4: Fortalezas
   strengths             String    @default("")
+  strengthCodes         String[]  // códigos de StrengthItem seleccionados (para repoblar UI)
 
   // Sección 5: Barreras
   barriers              String    @default("")
+  barrierCodes          String[]  // códigos de BarrierItem seleccionados (para repoblar UI)
 
   // Sección 6: Desempeño curricular (texto libre legacy — la tabla estructurada está en CurricularSubjectEntry)
   curricularPerformance String    @default("")
@@ -267,12 +273,14 @@ model IntegralAssessment {
 
   // Sección 9: Apoyos requeridos
   requiredSupports      String    @default("")
+  supportCodes          String[]  // códigos de SupportItem seleccionados (para repoblar UI)
 
   // Sección 10: Acuerdos y recomendaciones
   agreements            String    @default("")
 
   // Sección 11: Seguimiento
   followUp              String    @default("")
+  followupCodes         String[]  // códigos de FollowupSchedule seleccionados (para repoblar UI)
 
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
