@@ -27,6 +27,185 @@ model Teacher {
 }
 
 // =============================================
+// PARTICIPANT ROLES (biblioteca — Valoración Integral sección 2)
+// category: docente | servicio_apoyo | institucional | familia | estudiante | salud_apoyo | otro
+// =============================================
+model ParticipantRole {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  label     String
+  category  String
+  isCore    Boolean  @default(false)
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([active])
+}
+
+// =============================================
+// STRENGTH ITEMS (biblioteca — Valoración Integral sección 4 / Plan de Apoyo col. 1)
+// category: academica | cognitiva | socioemocional | interes | recurso_familia | recurso_escolar
+// =============================================
+model StrengthItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String
+  description String?
+  examples    String?
+  serviceTags String[]
+  isCore      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+
+// =============================================
+// LEARNING PROCESS ITEMS (biblioteca — Valoración Integral sección 5)
+// category: proceso | funcion_ejecutiva
+// Los 6 procesos oficiales + 5 subprocesos de FE (parentCode: PROC_FUNCIONES_EJECUTIVAS)
+// =============================================
+model LearningProcessItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String
+  parentCode  String?
+  description String?
+  examples    String?
+  serviceTags String[]
+  isCore      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+  @@index([parentCode])
+}
+
+// =============================================
+// SPECIFIC LEARNING DIFFICULTIES (biblioteca — Valoración Integral sección 5b / Plan de Apoyo)
+// category: especifica | proceso_implicado
+// Migración desde DIFFICULTIES_CATALOG en código con enriquecimiento semántico
+// =============================================
+model SpecificLearningDifficulty {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String
+  description String?
+  examples    String?
+  serviceTags String[]
+  isCore      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+
+// =============================================
+// BARRIER ITEMS (biblioteca — Valoración Integral sección 5)
+// Barreras para el aprendizaje y la participación
+// Fuente: Líneas de Acción MEP 2023, Informe Valoración 2026
+// category: contexto_aula | contexto_institucional | contexto_familiar
+//           curriculo | metodologia | evaluacion | organizacion | actitudinal
+// =============================================
+model BarrierItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String
+  description String?
+  serviceTags String[]
+  isCore      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+
+// =============================================
+// CONTEXT DIMENSIONS (biblioteca — Valoración Integral sección 3)
+// Dimensiones/indicadores para describir el contexto educativo
+// Fuente: Líneas de Acción MEP 2023 + Instrumento Valoración Integral
+// dimension: aula | institucional | familiar
+// =============================================
+model ContextDimension {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  dimension   String   // aula | institucional | familiar
+  description String?
+  guideText   String?  // Texto guía para el docente al describir este aspecto
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([dimension])
+}
+
+// =============================================
+// SUPPORT ITEMS (biblioteca — Valoración Integral sección 9)
+// Apoyos educativos requeridos
+// Fuente: Líneas de Acción MEP 2023 (art. 197-217), Informe 2026 sección 9
+// category: personal | curricular | metodologico | evaluativo | organizativo | material_tecnologico
+// =============================================
+model SupportItem {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String
+  description String?
+  serviceTags String[]
+  isCore      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([category])
+}
+
+// =============================================
+// FOLLOWUP SCHEDULES (biblioteca — Valoración Integral sección 11)
+// Opciones de seguimiento y revisión del proceso
+// Fuente: Cuaderno N°4, Proceso 3 "Reflexión para la mejora continua"
+// type: periodicidad | modalidad | responsable
+// =============================================
+model FollowupSchedule {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  type        String   // periodicidad | modalidad | responsable
+  description String?
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active])
+  @@index([type])
+}
+
+// =============================================
 // STUDENT
 // =============================================
 model Student {
@@ -47,6 +226,7 @@ model Student {
   assessment           IntegralAssessment?
   supportPlan          StudentSupportPlan?
   sessions             GeneratedSession[]
+  assessmentResults    StudentAssessmentResult[]
 
   @@index([teacherId])
 }
@@ -76,7 +256,7 @@ model IntegralAssessment {
   // Sección 5: Barreras
   barriers              String    @default("")
 
-  // Sección 6: Desempeño curricular (texto libre V0.9 → tabla V1)
+  // Sección 6: Desempeño curricular (texto libre legacy — la tabla estructurada está en CurricularSubjectEntry)
   curricularPerformance String    @default("")
 
   // Sección 7: Instrumentos utilizados
@@ -97,7 +277,28 @@ model IntegralAssessment {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  student               Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student               Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  curricularSubjects    CurricularSubjectEntry[]
+}
+
+// =============================================
+// CURRICULAR SUBJECT ENTRY (Sección 6 del Informe de Valoración 2026)
+// Tabla: Asignatura | Aprendizajes por lograr | Avances | Necesidades de apoyo
+// =============================================
+model CurricularSubjectEntry {
+  id              String             @id @default(cuid())
+  assessmentId    String
+  subject         String
+  goalsToAchieve  String             @default("")
+  progress        String             @default("")
+  supportNeeds    String             @default("")
+  sortOrder       Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  assessment      IntegralAssessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@index([assessmentId])
 }
 
 // =============================================
@@ -201,4 +402,68 @@ model GeneratedSession {
   @@index([studentId])
   @@index([supportObjectiveId])
   @@index([studentId, month])
+}
+
+// =============================================
+// ASSESSMENT OBJECTIVE (biblioteca — instrumento de valoración por dificultad)
+// Extraído de miscelaneos/objetivos.docx (664 objetivos, 5 dificultades)
+// difficulty: DISGRAFIA | DISORTOGRAFIA | DISPRAXIA | DISCALCULIA | DISLEXIA
+//             (+ TDA | APZ_LENTO | TANV — pendientes de contenido)
+// level: B (básico) | 1 | 2 | 3 | S (seguimiento emocional, escala 1-5)
+// levelType: checkbox (SÍ/NO/SÍ con apoyo) | scale (1-5)
+// =============================================
+model AssessmentObjective {
+  id             String   @id @default(cuid())
+  code           String   @unique           // "DISGRAFIA.A.B.1"
+  difficulty     String                     // "DISGRAFIA"
+  difficultyLabel String                    // "Disgrafía"
+  areaCode       String                     // "A"
+  areaLabel      String                     // "CALIDAD DEL TRAZO Y FORMACIÓN DE LETRAS"
+  level          String                     // "B" | "1" | "2" | "3" | "S"
+  levelLabel     String                     // "Básico" | "Nivel 1" | ...
+  levelType      String                     // "checkbox" | "scale"
+  levelSort      Int      @default(0)       // 0=B, 1, 2, 3, 99=S
+  itemOrder      Int                        // posición dentro de área+nivel
+  description    String                     // texto del objetivo
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  results        StudentAssessmentResult[]
+
+  @@index([difficulty])
+  @@index([difficulty, areaCode])
+  @@index([level])
+  @@index([active])
+}
+
+// =============================================
+// STUDENT ASSESSMENT RESULT
+// Resultado de un objetivo específico para un estudiante
+// Última evaluación: se sobreescribe en cada sesión de valoración
+// =============================================
+enum AssessmentResultValue {
+  yes
+  no
+  withSupport
+}
+
+model StudentAssessmentResult {
+  id          String                @id @default(cuid())
+  studentId   String
+  objectiveId String
+  result      AssessmentResultValue
+  scaleValue  Int?                  // solo para levelType=scale (1-5)
+  notes       String?
+  assessedAt  DateTime              @default(now())
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  student     Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  objective   AssessmentObjective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, objectiveId])
+  @@index([studentId])
+  @@index([objectiveId])
+  @@index([studentId, result])
 }
