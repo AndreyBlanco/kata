@@ -448,7 +448,7 @@ export default function ValoracionIntegralPage() {
   const toggleSection = useCallback((key: string) => {
     setOpenSections((prev) => {
       const next = new Set(prev)
-      if (next.has(key)) next.delete(key) else next.add(key)
+      if (next.has(key)) { next.delete(key) } else { next.add(key) }
       return next
     })
   }, [])
