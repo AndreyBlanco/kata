@@ -3,6 +3,7 @@
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { ASSESSMENT_OBJECTIVES } from './assessment-objectives-data'
+import { ASSESSMENT_OBJECTIVES_NEW } from './assessment-objectives-new'
 import { BARRIER_ITEMS, CONTEXT_DIMENSIONS, SUPPORT_ITEMS, FOLLOWUP_SCHEDULES } from './catalogs-data'
 
 const prisma = new PrismaClient()
@@ -420,11 +421,12 @@ async function main() {
   }
 
   // — AssessmentObjective —
-  // Seed en lotes para no saturar la conexión (664 registros)
+  // Seed en lotes para no saturar la conexión
+  const ALL_OBJECTIVES = [...ASSESSMENT_OBJECTIVES, ...ASSESSMENT_OBJECTIVES_NEW]
   const BATCH_SIZE = 50
   let seededObjectives = 0
-  for (let i = 0; i < ASSESSMENT_OBJECTIVES.length; i += BATCH_SIZE) {
-    const batch = ASSESSMENT_OBJECTIVES.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < ALL_OBJECTIVES.length; i += BATCH_SIZE) {
+    const batch = ALL_OBJECTIVES.slice(i, i + BATCH_SIZE)
     for (const row of batch) {
       await prisma.assessmentObjective.upsert({
         where: { code: row.code },
@@ -458,7 +460,7 @@ async function main() {
       })
       seededObjectives++
     }
-    process.stdout.write(`\r  AssessmentObjective: ${seededObjectives}/${ASSESSMENT_OBJECTIVES.length}`)
+    process.stdout.write(`\r  AssessmentObjective: ${seededObjectives}/${ALL_OBJECTIVES.length}`)
   }
   process.stdout.write('\n')
 
@@ -515,7 +517,7 @@ async function main() {
   console.log('✅ StrengthItem:', STRENGTH_ITEMS.length, 'registros')
   console.log('✅ LearningProcessItem:', LEARNING_PROCESS_ITEMS.length, 'registros')
   console.log('✅ SpecificLearningDifficulty:', SPECIFIC_LEARNING_DIFFICULTIES.length, 'registros')
-  console.log('✅ AssessmentObjective:', seededObjectives, 'registros')
+  console.log('✅ AssessmentObjective:', seededObjectives, `registros (${ASSESSMENT_OBJECTIVES.length} originales + ${ASSESSMENT_OBJECTIVES_NEW.length} nuevos)`)
   console.log('✅ BarrierItem:', BARRIER_ITEMS.length, 'registros')
   console.log('✅ ContextDimension:', CONTEXT_DIMENSIONS.length, 'registros')
   console.log('✅ SupportItem:', SUPPORT_ITEMS.length, 'registros')
