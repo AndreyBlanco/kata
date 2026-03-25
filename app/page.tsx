@@ -58,6 +58,15 @@ export default function HomePage() {
         </Link>
 
         <Link
+          href="/valoraciones"
+          className="block bg-white rounded-lg shadow-sm border p-4
+                     hover:border-blue-300 transition-colors"
+        >
+          <h3 className="font-medium text-gray-900">📋 Valoraciones</h3>
+          <p className="text-sm text-gray-500">Expedientes de valoración integral activos</p>
+        </Link>
+
+        <Link
           href="/informes"
           className="block bg-white rounded-lg shadow-sm border p-4
                      hover:border-blue-300 transition-colors"
