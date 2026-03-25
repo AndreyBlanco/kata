@@ -1,6 +1,6 @@
 # Katà — Notas de diseño y continuidad del proyecto
 
-> Última actualización: 25 marzo 2026 (sesión 6)  
+> Última actualización: 25 marzo 2026 (sesión 8)  
 > Propósito: documento de continuidad para retomar el diseño en conversaciones futuras con el agente de desarrollo.
 
 ---
@@ -158,6 +158,7 @@ Cada módulo se alimenta del anterior:
 | PUT | /api/assessments/[studentId]/curricular-subjects | Reemplazar tabla curricular completa |
 | GET | /api/assessments/[studentId]/export | Descargar Informe de Valoración Integral como `.docx` |
 | PATCH | /api/assessments/[studentId]/status | Cambiar estado del expediente (`status`, `requiresSupport`) |
+| GET | /api/assessments | Listar todos los expedientes del docente con progreso calculado |
 | POST | /api/support-plans/[studentId]/generate | Generar borrador del Plan de Apoyo (no guarda; retorna draft) |
 
 ### Parámetros comunes de los endpoints de catálogo
@@ -474,11 +475,6 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
 - ✅ `lib/valoracion-export.ts` — motor de exportación `.docx` del Informe de Valoración Integral 2026 (11 secciones + firmas, colores y márgenes del template oficial).
 - ✅ `GET /api/assessments/[studentId]/export` — endpoint de descarga que ensambla todos los datos y devuelve el archivo.
 
-### Sesión 7 — completado (25 mar 2026)
-- ✅ Migración `20260325192028_add_assessment_status_and_catalog_codes`: agrega `status`, `requiresSupport`, `strengthCodes[]`, `barrierCodes[]`, `supportCodes[]`, `followupCodes[]` a `IntegralAssessment`.
-- ✅ `PUT /api/assessments/[studentId]` actualizado con los nuevos campos de códigos de catálogo.
-- ✅ `PATCH /api/assessments/[studentId]/status` — nuevo endpoint para cambiar `status` (`active`/`completed`) y `requiresSupport` (`boolean | null`) de forma independiente al contenido.
-
 ### Sesión 6 — completado (25 mar 2026)
 - ✅ Revisión de estructura del Plan de Apoyo (págs. 56-58 del Cuaderno N°4): encabezado + tabla 4 columnas.
 - ✅ `lib/support-plan-generator.ts` — generador de borrador del Plan de Apoyo:
@@ -489,19 +485,44 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
   - Retorna `SupportPlanDraft` con metadata (`_meta`) para la UI.
 - ✅ `POST /api/support-plans/[studentId]/generate` — endpoint que llama al generador y retorna el borrador **sin guardar**. El docente lo edita y confirma con `PUT /api/support-plans/[studentId]`.
 
-### Próximos (sesión 8 en adelante)
+### Sesión 7 — completado (25 mar 2026)
+- ✅ Diseño del Expediente de Valoración (no lineal, multi-semana, reversible).
+- ✅ Migración `20260325192028_add_assessment_status_and_catalog_codes`: agrega `status`, `requiresSupport`, `strengthCodes[]`, `barrierCodes[]`, `supportCodes[]`, `followupCodes[]` a `IntegralAssessment`.
+- ✅ `PUT /api/assessments/[studentId]` actualizado con los nuevos campos de códigos de catálogo.
+- ✅ `PATCH /api/assessments/[studentId]/status` — endpoint para cambiar `status` (`active`/`completed`) y `requiresSupport` (`boolean | null`) de forma independiente al contenido.
 
-1. **UI Expediente de Valoración** — Dashboard `/valoraciones` + espacio de trabajo `/estudiantes/[id]/valoracion` con tabs por sección (Brecha 5).
-2. **Migrar INSTRUMENTS_CATALOG a BD** con flujo de aprobación (`status`: approved/pendingApproval/rejected).
-3. **Implementar INSTITUTIONAL_SUGGESTIONS** para autocompletar institucional (centerName, circuit, etc.).
-4. **Completar herramienta de valoración para TDA, Aprendizaje lento y TANV** (trabajo de contenido).
+### Sesión 8 — completado (25 mar 2026) — **Brecha 5 ✅**
+- ✅ **Fase 1+2** — `app/estudiantes/[id]/valoracion/page.tsx` reescrito:
+  - Header sticky con badge de estado (En proceso / Completada) + contador X/11 secciones.
+  - Botón "Finalizar valoración" + `ConfirmModal` (guarda cambios pendientes antes de cerrar).
+  - Panel post-cierre: descarga `.docx` + decisión `requiresSupport` (Sí→genera plan / No→archiva).
+  - Botón "Reabrir expediente" (reversible en todo momento).
+  - S2 Participantes: checkboxes del catálogo `ParticipantRole` agrupados por categoría + campo libre.
+  - Indicador de cambios sin guardar (punto ámbar en botón de guardar).
+- ✅ **Fase 3** — Catálogos en S4/S5/S9/S11 con componente `CatalogCheckboxGroup`:
+  - Carga paralela de 8 endpoints en un solo `Promise.all` al montar.
+  - S4 Fortalezas → `strengthCodes[]` (StrengthItem, 6 categorías, color indigo).
+  - S5 Barreras → `barrierCodes[]` (BarrierItem, 8 categorías, color violet).
+  - S9 Apoyos requeridos → `supportCodes[]` (SupportItem, 6 categorías, color sky).
+  - S11 Seguimiento → `followupCodes[]` (FollowupSchedule, 3 tipos, color teal).
+- ✅ **Fase 4** — S6 Desempeño curricular reemplaza el textarea legacy con editor de tabla:
+  - Componente `SubjectCard` (asignatura + 3 textareas: logros / avances / necesidades de apoyo).
+  - Guardado independiente vía `PUT /api/assessments/[studentId]/curricular-subjects`.
+  - Estado `curricularDirty` separado del `isDirty` principal.
+- ✅ **Fase 5** — Dashboard `/valoraciones`:
+  - `GET /api/assessments` — lista con `computeProgress` (11 checks server-side) + `_count.curricularSubjects`.
+  - Filtros Todas / En proceso / Completadas.
+  - Cards con barra de progreso, badges de estado/apoyo, fecha relativa.
+  - Alerta ámbar si hay valoraciones completadas con decisión de apoyo pendiente.
+  - Enlace desde `app/page.tsx`.
+- ✅ `app/estudiantes/[id]/page.tsx` — StepCard de Valoración refleja `status === 'completed'`.
 
-#### Diseño del Expediente de Valoración (Brecha 5)
-- **`status`**: `"active"` (en proceso) | `"completed"` (cerrado). Reversible en cualquier momento.
-- **`requiresSupport`**: `null` (no decidido) | `true` | `false`. Persiste la decisión de ingreso al sistema.
-- **Flujo de cierre**: Finalizar → modal → `status=completed` → Descargar informe + decidir apoyo.
-- **No wizard lineal**: tabs independientes, guardado por sección, múltiples expedientes activos simultáneos.
-- **Vista**: `/valoraciones` (dashboard global) + `/estudiantes/[id]/valoracion` (espacio de trabajo).
+### Próximos (sesión 9 en adelante)
+
+1. **Migrar INSTRUMENTS_CATALOG a BD** con flujo de aprobación (`status`: approved/pendingApproval/rejected).
+2. **Implementar INSTITUTIONAL_SUGGESTIONS** para autocompletar institucional (centerName, circuit, etc.).
+3. **Completar herramienta de valoración para TDA, Aprendizaje lento y TANV** (trabajo de contenido).
+4. **Dashboard principal** — resumen de actividad reciente (sesiones pendientes, valoraciones activas, etc.).
 
 ---
 
