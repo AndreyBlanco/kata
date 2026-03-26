@@ -67,6 +67,10 @@ export async function PATCH(
   const patch: Record<string, unknown> = {}
   if (status !== undefined) patch.status = status
   if (requiresSupport !== undefined) patch.requiresSupport = requiresSupport
+  // Al completar → registrar fecha de elaboración automáticamente
+  if (status === 'completed') patch.elaborationDate = new Date()
+  // Al reabrir → limpiar la fecha de elaboración
+  if (status === 'active') patch.elaborationDate = null
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json(

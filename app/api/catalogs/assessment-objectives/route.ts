@@ -139,7 +139,8 @@ export async function GET(req: NextRequest) {
             level:      l.level,
             levelLabel: l.levelLabel,
             levelType:  l.levelType,
-            items:      l.items,
+            levelSort:  l.levelSort,
+            objectives: l.items,
           })),
       })),
     }))

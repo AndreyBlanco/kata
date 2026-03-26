@@ -512,6 +512,33 @@ async function main() {
     })
   }
 
+  // =============================================
+  // ASSESSMENT INSTRUMENTS
+  // 9 instrumentos oficiales del Informe de Valoración Integral 2026 (sección 7)
+  // status: "approved", isCore: true, suggestedBy: null (sistema)
+  // category: observacion | entrevista | curriculum | escala | prueba_formal | otro
+  // =============================================
+  const ASSESSMENT_INSTRUMENTS = [
+    { code: 'INS_OBS_AULA',      label: 'Observación en aula',                              category: 'observacion', isCore: true, sortOrder: 10 },
+    { code: 'INS_OBS_OTROS',     label: 'Observación en otros contextos',                   category: 'observacion', isCore: true, sortOrder: 20 },
+    { code: 'INS_REG_OBS',       label: 'Registros de observación',                         category: 'observacion', isCore: true, sortOrder: 30 },
+    { code: 'INS_ENT_FAMILIA',   label: 'Entrevista a familia',                              category: 'entrevista',  isCore: true, sortOrder: 40 },
+    { code: 'INS_ENT_DOCENTES',  label: 'Entrevista a docentes',                             category: 'entrevista',  isCore: true, sortOrder: 50 },
+    { code: 'INS_CURR_BASE',     label: 'Instrumentos basados en el currículo',              category: 'curriculum',  isCore: true, sortOrder: 60 },
+    { code: 'INS_EVAL_DIAG',     label: 'Evaluaciones diagnósticas en asignaturas básicas', category: 'curriculum',  isCore: true, sortOrder: 70 },
+    { code: 'INS_ESCALA_CALIF',  label: 'Escala de calificación',                            category: 'escala',      isCore: true, sortOrder: 80 },
+    { code: 'INS_LISTA_COTEJO',  label: 'Lista de cotejo',                                   category: 'escala',      isCore: true, sortOrder: 90 },
+  ] as const
+
+  console.log('  Seeding AssessmentInstrument...')
+  for (const row of ASSESSMENT_INSTRUMENTS) {
+    await prisma.assessmentInstrument.upsert({
+      where:  { code: row.code },
+      update: { label: row.label, category: row.category, isCore: row.isCore, sortOrder: row.sortOrder, status: 'approved', active: true },
+      create: { code: row.code, label: row.label, category: row.category, isCore: row.isCore, sortOrder: row.sortOrder, status: 'approved', active: true },
+    })
+  }
+
   console.log('✅ Seed completado:', teacher.name)
   console.log('✅ ParticipantRole:', PARTICIPANT_ROLES.length, 'registros')
   console.log('✅ StrengthItem:', STRENGTH_ITEMS.length, 'registros')
@@ -522,6 +549,7 @@ async function main() {
   console.log('✅ ContextDimension:', CONTEXT_DIMENSIONS.length, 'registros')
   console.log('✅ SupportItem:', SUPPORT_ITEMS.length, 'registros')
   console.log('✅ FollowupSchedule:', FOLLOWUP_SCHEDULES.length, 'registros')
+  console.log('✅ AssessmentInstrument: 9 registros (core)')
 }
 
 main()

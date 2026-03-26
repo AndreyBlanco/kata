@@ -48,14 +48,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(roles)
   }
 
-  // Agrupar por categoría manteniendo el orden de sortOrder del primer item
-  const groupMap = new Map<string, { category: string; roles: typeof roles }>()
+  // Agrupar por categoría → Record<string, roles[]>
+  const byCategory: Record<string, typeof roles> = {}
   for (const role of roles) {
-    if (!groupMap.has(role.category)) {
-      groupMap.set(role.category, { category: role.category, roles: [] })
-    }
-    groupMap.get(role.category)!.roles.push(role)
+    if (!byCategory[role.category]) byCategory[role.category] = []
+    byCategory[role.category].push(role)
   }
 
-  return NextResponse.json(Array.from(groupMap.values()))
+  return NextResponse.json(byCategory)
 }

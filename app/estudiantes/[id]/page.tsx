@@ -32,7 +32,8 @@ export default function StudentDetailPage() {
   // Step statuses
   const [assessmentStatus, setAssessmentStatus] = useState<StepStatus>('empty')
   const [planStatus, setPlanStatus] = useState<StepStatus>('empty')
-  const [objectivesCount, setObjectivesCount] = useState(0)
+  const [objectivesPending, setObjectivesPending]   = useState(0)
+  const [objectivesAchieved, setObjectivesAchieved] = useState(0)
   const [sessionsInfo, setSessionsInfo] = useState({ completed: 0, total: 0 })
 
   useEffect(() => {
@@ -74,11 +75,17 @@ export default function StudentDetailPage() {
           }
         }
 
-        // Objectives count
-        const oRes = await fetch(`/api/objectives?studentId=${studentId}`)
+        // Objectives — conteo desde resultados de valoración diagnóstica
+        const oRes = await fetch(`/api/assessments/${studentId}/results?withObjective=true`)
         if (oRes.ok) {
           const oData = await oRes.json()
-          setObjectivesCount(Array.isArray(oData) ? oData.filter((o: { active: boolean }) => o.active).length : 0)
+          if (Array.isArray(oData)) {
+            const evaluated = oData.filter((r: { result: string }) =>
+              r.result === 'no' || r.result === 'withSupport' || r.result === 'yes'
+            )
+            setObjectivesPending(evaluated.filter((r: { result: string }) => r.result !== 'yes').length)
+            setObjectivesAchieved(evaluated.filter((r: { result: string }) => r.result === 'yes').length)
+          }
         }
 
         // Sessions info (current month)
@@ -177,22 +184,32 @@ export default function StudentDetailPage() {
         />
 
         {/* ── 3. Objetivos ── */}
-        <StepCard
-          step={3}
-          title="Objetivos de Apoyo"
-          description={
-            objectivesCount > 0
-              ? `${objectivesCount} objetivo(s) activo(s)`
-              : 'Sin objetivos asignados'
-          }
-          status={objectivesCount > 0 ? 'complete' : 'empty'}
-          statusLabels={{
-            empty: 'Sin objetivos',
-            started: 'En progreso',
-            complete: `${objectivesCount}/2 activos`,
-          }}
-          onClick={() => router.push(`/estudiantes/${studentId}/objetivos`)}
-        />
+        {(() => {
+          const total    = objectivesPending + objectivesAchieved
+          const allDone  = total > 0 && objectivesPending === 0
+          const hasItems = total > 0
+          const status: StepStatus = allDone ? 'complete' : hasItems ? 'started' : 'empty'
+          return (
+            <StepCard
+              step={3}
+              title="Objetivos de Apoyo"
+              description={
+                allDone
+                  ? `¡Todos logrados! (${total})`
+                  : hasItems
+                  ? `${objectivesPending} pendiente${objectivesPending !== 1 ? 's' : ''} · ${objectivesAchieved} logrado${objectivesAchieved !== 1 ? 's' : ''}`
+                  : 'Sin objetivos de valoración'
+              }
+              status={status}
+              statusLabels={{
+                empty:    'Sin objetivos',
+                started:  `${objectivesAchieved}/${total} logrados`,
+                complete: '¡Alta sugerida!',
+              }}
+              onClick={() => router.push(`/estudiantes/${studentId}/objetivos`)}
+            />
+          )
+        })()}
 
         {/* ── 4. Sesiones ── */}
         <StepCard

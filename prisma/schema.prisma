@@ -282,6 +282,9 @@ model IntegralAssessment {
   followUp              String    @default("")
   followupCodes         String[]  // códigos de FollowupSchedule seleccionados (para repoblar UI)
 
+  // Sección 7: Notas por instrumento (label → texto libre del docente)
+  instrumentNotes       Json      @default("{}")
+
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -410,6 +413,33 @@ model GeneratedSession {
   @@index([studentId])
   @@index([supportObjectiveId])
   @@index([studentId, month])
+}
+
+// =============================================
+// ASSESSMENT INSTRUMENT (biblioteca — instrumentos y procedimientos de valoración)
+// Sección 7 del Informe de Valoración Integral 2026
+// status: approved | pendingApproval | rejected
+// isCore: true = instrumento oficial del MEP (9 originales)
+// suggestedBy: teacherId — null si es del sistema
+// category: observacion | entrevista | curriculum | escala | prueba_formal | otro
+// =============================================
+model AssessmentInstrument {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  label       String
+  category    String   @default("otro")
+  description String?
+  isCore      Boolean  @default(false)
+  status      String   @default("approved")  // "approved" | "pendingApproval" | "rejected"
+  suggestedBy String?                         // teacherId — null si es del sistema
+  sortOrder   Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([active])
 }
 
 // =============================================

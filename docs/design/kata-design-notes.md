@@ -1,6 +1,6 @@
 # Katà — Notas de diseño y continuidad del proyecto
 
-> Última actualización: 25 marzo 2026 (sesión 8)  
+> Última actualización: 26 marzo 2026 (sesión 10)  
 > Propósito: documento de continuidad para retomar el diseño en conversaciones futuras con el agente de desarrollo.
 
 ---
@@ -89,10 +89,9 @@ Cada módulo se alimenta del anterior:
 
 - **AssessmentObjective** (migración `20260325172416_add_assessment_objectives_and_results`):
   - id, code (unique, ej: "DISGRAFIA.A.B.1"), difficulty, difficultyLabel, areaCode, areaLabel, level (B/1/2/3/S), levelLabel, levelType (checkbox/scale), levelSort, itemOrder, description, active.
-  - **664 objetivos** extraídos de `miscelaneos/objetivos.docx` (script: `miscelaneos/gen_seed.py`).
-  - 5 dificultades implementadas: DISGRAFIA (106), DISORTOGRAFIA (118), DISPRAXIA (111), DISCALCULIA (171), DISLEXIA (158).
-  - TDA / APZ_LENTO / TANV: **pendientes de contenido** — estructura lista para añadir (ver plantilla comentada en `prisma/assessment-objectives-data.ts`).
-  - Datos en: `prisma/assessment-objectives-data.ts` (auto-generado, NO editar manualmente).
+  - **899 objetivos** totales en BD: 664 extraídos de `miscelaneos/objetivos.docx` + 239 creados para TDA/APZ_LENTO/TANV.
+  - 8 dificultades: DISGRAFIA (106), DISORTOGRAFIA (118), DISPRAXIA (111), DISCALCULIA (171), DISLEXIA (158), TDA (77), APZ_LENTO (72), TANV (90).
+  - Datos en: `prisma/assessment-objectives-data.ts` + `prisma/assessment-objectives-new.ts` (NO editar manualmente).
 
 - **StudentAssessmentResult** (misma migración):
   - id, studentId, objectiveId, result (enum: yes/no/withSupport), scaleValue? (1-5 para nivel S), notes?, assessedAt.
@@ -158,8 +157,10 @@ Cada módulo se alimenta del anterior:
 | PUT | /api/assessments/[studentId]/curricular-subjects | Reemplazar tabla curricular completa |
 | GET | /api/assessments/[studentId]/export | Descargar Informe de Valoración Integral como `.docx` |
 | PATCH | /api/assessments/[studentId]/status | Cambiar estado del expediente (`status`, `requiresSupport`) |
+| DELETE | /api/assessments/[studentId]/results | Eliminar resultado individual (`?objectiveId=XXX`) |
 | GET | /api/assessments | Listar todos los expedientes del docente con progreso calculado |
 | POST | /api/support-plans/[studentId]/generate | Generar borrador del Plan de Apoyo (no guarda; retorna draft) |
+| GET | /api/support-plans/[studentId]/export | Descargar Plan de Apoyo como `.docx` |
 
 ### Parámetros comunes de los endpoints de catálogo
 - `?category=<valor>` → filtra por categoría.
@@ -517,12 +518,60 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
   - Enlace desde `app/page.tsx`.
 - ✅ `app/estudiantes/[id]/page.tsx` — StepCard de Valoración refleja `status === 'completed'`.
 
-### Próximos (sesión 9 en adelante)
+### Sesión 9 — completado (25 mar 2026)
+- ✅ Contenido herramienta TDA (77 objetivos), APZ_LENTO (72 obj.), TANV (90 obj.) → total 899 en BD.
+- ✅ `lib/mep-data.ts` — datos estáticos MEP (direcciones, circuitos, especialidades) para autocompletar.
+- ✅ `app/api/profile/route.ts` — GET/PATCH perfil del docente.
+- ✅ `app/perfil/page.tsx` — formulario editable con `CircuitCombobox` y selección de especialidad.
+- ✅ `AssessmentInstrument` en BD con `status` (approved/pendingApproval/rejected) + flujo de aprobación.
+- ✅ `GET/POST /api/catalogs/instruments` + `PATCH/DELETE /api/catalogs/instruments/[id]`.
+- ✅ `app/instrumentos/page.tsx` — gestión del catálogo de instrumentos.
+- ✅ Fix de exportación `.docx` de valoración: `strengthCodes`, `barrierCodes`, `supportCodes` resueltos a etiquetas.
+- ✅ `instrumentNotes: Json` en `IntegralAssessment` + textarea por instrumento en sección 7.
+- ✅ Página `/herramientas/[difficulty]` — herramienta diagnóstica interactiva por dificultad con auto-guardado.
+- ✅ Botón "Generar desempeño curricular desde herramientas" en sección 6 de la valoración.
+- ✅ Fix: `participant-roles` y `strength-items` APIs devuelven objeto `Record<string, T[]>` cuando `?grouped=true`.
 
-1. **Migrar INSTRUMENTS_CATALOG a BD** con flujo de aprobación (`status`: approved/pendingApproval/rejected).
-2. **Implementar INSTITUTIONAL_SUGGESTIONS** para autocompletar institucional (centerName, circuit, etc.).
-3. **Completar herramienta de valoración para TDA, Aprendizaje lento y TANV** (trabajo de contenido).
-4. **Dashboard principal** — resumen de actividad reciente (sesiones pendientes, valoraciones activas, etc.).
+### Sesión 10 — completado (26 mar 2026)
+- ✅ `lib/support-plan-generator.ts` — generador de borrador completamente reescrito:
+  - `AREA_TO_PROCESSES`: 30+ áreas diagnósticas → 6 procesos oficiales MEP.
+  - `AREA_TO_EF_SUBPROCESSES`: áreas → subprocesos de Funciones Ejecutivas (Planificación, Organización, Flexibilidad, Autorregulación, Automonitoreo).
+  - `DIFFICULTY_LABEL_TO_CATALOG`: normaliza `difficultyLabel` de BD al valor exacto del catálogo UI.
+  - `BARRIER_CATEGORY_TO_MEDIATION`: 8 categorías de barreras → estrategia de mediación contextual.
+  - `SUPPORT_CATEGORY_TO_SPECIFIC`: 6 categorías de apoyos → estrategia específica del docente.
+  - Plantillas de estrategias ampliadas: TDA, APZ_LENTO, TANV + estrategias específicas por área para las 8 dificultades.
+  - Columna 1: resuelve `strengthCodes` a etiquetas + combina con texto libre.
+  - Columna 2: plantillas + estrategias contextuales por categoría de barreras identificadas.
+  - Columna 3: plantillas + acuerdos de la valoración (`agreements`).
+  - Columna 4: estrategias por área + estrategias contextuales por categoría de apoyos requeridos.
+- ✅ `app/estudiantes/[id]/plan/page.tsx` — botón "Generar borrador desde Valoración Integral":
+  - Pre-marca automáticamente dificultades, procesos, subprocesos FE y las 4 columnas.
+  - Badges **VI** en todos los campos pre-llenados.
+  - Banner verde de confirmación con métricas de generación.
+- ✅ `lib/support-plan-export.ts` — motor de exportación del Plan de Apoyo en `.docx`:
+  - Sección de encabezado: datos generales, checkboxes de dificultades/procesos/subprocesos FE.
+  - Tabla oficial de 4 columnas con formato MEP (colores azul, sombreado, márgenes).
+  - Texto multilinea con `▸` y `•` renderizado como párrafos con sangría y estilos.
+  - Sección de firmas al final.
+- ✅ `GET /api/support-plans/[studentId]/export` — endpoint de descarga del Plan en `.docx`.
+- ✅ Botón verde "Exportar Plan (.docx)" en la página del plan (aparece tras primer guardado).
+- ✅ `app/estudiantes/[id]/objetivos/page.tsx` — reescrito como tracker de objetivos de apoyo:
+  - Fuente: `StudentAssessmentResult` con `result: no | withSupport | yes` (no `SupportObjective`).
+  - Barra de progreso general + mini barra por dificultad.
+  - Agrupación: dificultad → área → objetivos (ordenados: no → withSupport → yes).
+  - Botón "Logrado" (marca `yes`) / "Deshacer" (revierte a `withSupport`) con auto-guardado.
+  - Filtros: Pendientes | Todos | Logrados.
+  - Banner de alta sugerida cuando todos los objetivos están en `yes`.
+- ✅ `app/estudiantes/[id]/page.tsx` — StepCard "Objetivos de Apoyo" usa conteos reales:
+  - `objectivesPending` + `objectivesAchieved` desde `StudentAssessmentResult`.
+  - `started` = "X pendientes · Y logrados", `complete` = "¡Alta sugerida!".
+
+### Próximos pasos (sesión 11 en adelante)
+
+1. **Dashboard principal** — resumen de actividad reciente (valoraciones activas, objetivos pendientes, sesiones del mes).
+2. **Sesiones del periodo** — revisar flujo y vinculación con los nuevos "Objetivos de Apoyo" (los objetivos de diagnóstico reemplazan conceptualmente al `SupportObjective` para reportes).
+3. **`lib/mep-data.ts` — datos oficiales**: reemplazar datos aproximados con listado oficial del MEP (27 direcciones regionales + circuitos exactos).
+4. **Motor de informes** — actualizar `lib/report-engine.ts` para que el informe de periodo se alimente de `StudentAssessmentResult` (logros/pendientes) en lugar de `SupportObjective`.
 
 ---
 
@@ -550,7 +599,7 @@ DISGRAFIA.A.B.1
 | Nivel 3 | 3 | checkbox | Competencia avanzada |
 | Seguimiento emocional | S | scale (1-5) | Frustración y ansiedad ante la tarea |
 
-### Dificultades y áreas implementadas (664 objetivos)
+### Dificultades y áreas implementadas (899 objetivos totales)
 | Dificultad | Áreas | Objetivos |
 |---|---|---|
 | DISGRAFIA | A: Trazo/letras · B: Organización espacial · C: Fluidez/velocidad · D: Presión/agarre · E: Dibujo geométrico · F: Indicadores emocionales | 106 |
@@ -558,9 +607,9 @@ DISGRAFIA.A.B.1
 | DISPRAXIA | A: Motricidad gruesa · B: Motricidad fina · C: Planificación motora · D: Conciencia corporal/espacial · E: Indicadores emocionales | 111 |
 | DISCALCULIA | A: Sentido numérico · B: Reconocimiento números · C: Cálculo · D: Organización espacial · E: Resolución problemas · F: Espacio-temporal · G: Memoria trabajo · H: Indicadores emocionales | 171 |
 | DISLEXIA | A: Conciencia fonológica · B1: Decodificación precisión · B2: Decodificación fluidez · C: Comprensión lectora · D: Ruta léxica · E1: Codificación fonológica · E2: Ortografía/gramática · F: Indicadores emocionales | 158 |
-| **TDA** | Pendiente de contenido | — |
-| **APZ_LENTO** | Pendiente de contenido | — |
-| **TANV** | Pendiente de contenido | — |
+| TDA ✅ | Inatención sostenida · Impulsividad · Hiperactividad motora · Funciones ejecutivas · Rendimiento académico · Regulación emocional · Indicadores conductuales/emocionales | 77 |
+| APZ_LENTO ✅ | Velocidad de procesamiento · Memoria de trabajo · Comprensión verbal · Razonamiento · Habilidades académicas · Desarrollo del lenguaje y vocabulario | 72 |
+| TANV ✅ | Habilidades visoespaciales/visoconstructivas · Habilidades motoras · Funciones ejecutivas y planificación · Procesamiento táctil y sensorial · Habilidades sociales y comunicación no verbal | 90 |
 
 ### Flujo de uso en la app
 ```
@@ -578,6 +627,101 @@ DISGRAFIA.A.B.1
         ↓
 7. Opcional: convertir en SupportObjective para planificación mensual
 ```
+
+---
+
+---
+
+## 10. Perfil del docente e INSTITUTIONAL_SUGGESTIONS (sesión 9)
+
+### Problema
+Los campos `centerName`, `circuit` y `specialty` del Teacher se creaban al registrar la cuenta pero no había forma de editarlos. Afectan directamente los encabezados de los documentos exportados (informes Word, valoración integral Word).
+
+### Solución implementada
+
+**`lib/mep-data.ts`** — datos estáticos del MEP:
+- `MEP_REGIONAL_DIRECTIONS[]`: 18 direcciones regionales con sus circuitos.
+- `ALL_CIRCUITS`: lista plana ordenada para combobox.
+- `CIRCUIT_TO_REGION`: mapa circuito → dirección regional (para mostrar contexto).
+- `MEP_SPECIALTIES`: 9 especialidades del servicio de apoyo (PA, PEC, DV, DA, RM, DM, TEA, Aula Integrada, Aula Recurso).
+
+**`app/api/profile/route.ts`**:
+- `GET` — retorna `{ id, name, email, centerName, circuit, specialty, createdAt }`.
+- `PATCH` — actualiza cualquiera de `name | centerName | circuit | specialty`.
+
+**`app/perfil/page.tsx`**:
+- Formulario editable con `isDirty` → botón habilitado solo si hay cambios.
+- `CircuitCombobox`: input + dropdown filtrado por región. Normalización de tildes para búsqueda.
+- Muestra la dirección regional inferida al seleccionar un circuito.
+- `<select>` con `MEP_SPECIALTIES` para la especialidad.
+- Aviso informativo: datos aparecen en todos los documentos exportados.
+
+**`app/page.tsx`**:
+- Ícono ⚙️ en header → `/perfil`.
+- Tarjeta "Mi perfil" al final del menú principal.
+
+### Tareas pendientes
+- **`lib/mep-data.ts` — datos aproximados (piloto)**: reemplazar con el listado oficial del MEP (27 direcciones regionales + circuitos exactos con numeración correcta). Los datos actuales son suficientes para pruebas pero no para producción.
+- Dashboard principal — resumen de actividad reciente (sesiones pendientes, valoraciones activas, etc.).
+
+---
+
+## 11. INSTRUMENTS_CATALOG migrado a BD (sesión 9)
+
+### Problema
+El `INSTRUMENTS_CATALOG` era un array estático hardcodeado en `lib/catalogs.ts`. No permitía que los docentes propusieran nuevos instrumentos ni gestionar su ciclo de vida.
+
+### Solución implementada
+
+**`prisma/schema.prisma`** — nuevo modelo `AssessmentInstrument`:
+- Campos: `code (unique)`, `label`, `category`, `description?`, `isCore`, `status`, `suggestedBy?`, `sortOrder`, `active`.
+- `status`: `"approved"` | `"pendingApproval"` | `"rejected"`.
+- `isCore: true` = los 9 instrumentos oficiales del MEP (no editables).
+- `suggestedBy: teacherId` = quien lo propuso (null = sistema).
+- Migración: `20260325210821_add_assessment_instrument_catalog`.
+
+**`prisma/seed.ts`** — 9 instrumentos core sembrados:
+- `INS_OBS_AULA`, `INS_OBS_OTROS`, `INS_REG_OBS` → categoría `observacion`
+- `INS_ENT_FAMILIA`, `INS_ENT_DOCENTES` → `entrevista`
+- `INS_CURR_BASE`, `INS_EVAL_DIAG` → `curriculum`
+- `INS_ESCALA_CALIF`, `INS_LISTA_COTEJO` → `escala`
+
+**`app/api/catalogs/instruments/route.ts`**:
+- `GET`: retorna todos `approved` + propios `pendingApproval` del docente autenticado.
+- `POST`: docente propone instrumento nuevo → `status: pendingApproval`. Valida duplicados.
+
+**`app/api/catalogs/instruments/[id]/route.ts`**:
+- `PATCH { status }`: aprueba o rechaza instrumentos pendientes (cualquier docente en piloto).
+- `DELETE`: el docente que lo propuso puede eliminarlo si sigue pendiente.
+
+**`app/estudiantes/[id]/valoracion/page.tsx`** — sección 7 actualizada:
+- `instrumentCatalog` state cargado desde API en el `Promise.all` inicial.
+- Chips dinámicos con badge "pendiente" en amarillo para los de `pendingApproval`.
+- `addOtherInstrument` ahora hace `POST /api/catalogs/instruments` al proponer uno nuevo.
+- Retrocompatibilidad: instrumentos guardados en BD que ya no están en el catálogo se muestran en azul.
+
+**`app/instrumentos/page.tsx`** — página de gestión:
+- Filtros: Todos / Aprobados / Pendientes (con contador).
+- Agrupados por categoría.
+- Acciones: Aprobar, Rechazar, Eliminar (solo para no-core y pendientes).
+- Badge MEP para instrumentos oficiales.
+
+**`app/page.tsx`**:
+- Tarjeta "🔬 Instrumentos de valoración" en el menú principal.
+
+---
+
+### Sesión 10 (26 mar 2026)
+
+| Archivo | Cambio |
+|---------|--------|
+| `lib/support-plan-generator.ts` | Reescrito: mapeos `AREA_TO_PROCESSES`, `AREA_TO_EF_SUBPROCESSES`, `DIFFICULTY_LABEL_TO_CATALOG`, `BARRIER_CATEGORY_TO_MEDIATION`, `SUPPORT_CATEGORY_TO_SPECIFIC`; plantillas TDA/APZ_LENTO/TANV; Columna 1 desde `strengthCodes`; Columna 2 enriquecida con barreras; Columna 3 con acuerdos; Columna 4 con apoyos |
+| `app/estudiantes/[id]/plan/page.tsx` | `handleGenerate`: llama a `POST /generate`, pre-marca todos los campos; badges **VI** en los 6 campos del encabezado + 4 columnas; banner verde post-generación con métricas; `handleExport`: descarga `.docx`; botón verde "Exportar Plan (.docx)" |
+| `lib/support-plan-export.ts` | **Nuevo**: motor docx del Plan de Apoyo (encabezado + checkboxes + tabla 4 columnas + firmas) |
+| `app/api/support-plans/[studentId]/export/route.ts` | **Nuevo endpoint** `GET` — ensambla y descarga el Plan en `.docx` |
+| `app/estudiantes/[id]/objetivos/page.tsx` | **Reescrito**: tracker basado en `StudentAssessmentResult`; barra de progreso; agrupación dificultad→área; botones Logrado/Deshacer con auto-guardado; banner de alta sugerida |
+| `app/estudiantes/[id]/page.tsx` | StepCard "Objetivos" usa `objectivesPending`/`objectivesAchieved` desde API real; estados dinámicos |
+| `docs/design/kata-design-notes.md` | Actualizado: header sesión 10, tabla APIs, sección 16 (TDA/APZ_LENTO/TANV completadas), sesión 10 en próximos pasos |
 
 ---
 

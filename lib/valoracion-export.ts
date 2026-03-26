@@ -87,6 +87,7 @@ export interface ValoracionExportData {
 
   // Sección 7
   instruments: string[]
+  instrumentNotes?: Record<string, string>  // código/label → notas del docente
 
   // Sección 8
   integralAnalysis: string
@@ -428,7 +429,10 @@ const DEFAULT_INSTRUMENTS = [
   'Instrumentos basados en el currículo',
 ]
 
-function instrumentsSection(selected: string[]): Paragraph[] {
+function instrumentsSection(
+  selected: string[],
+  notes: Record<string, string> = {}
+): Paragraph[] {
   const selectedSet = new Set(selected.map(s => s.trim().toLowerCase()))
   const result: Paragraph[] = []
 
@@ -443,6 +447,30 @@ function instrumentsSection(selected: string[]): Paragraph[] {
         spacing: { after: 60 },
       })
     )
+    // Si el instrumento está seleccionado y tiene notas, las agrega debajo
+    if (checked) {
+      const notesText = notes[inst] ?? notes[inst.toLowerCase()] ?? ''
+      if (notesText.trim()) {
+        for (const line of notesText.split('\n')) {
+          if (line.trim()) {
+            result.push(
+              new Paragraph({
+                children: [
+                  new TextRun({
+                    text: `    ${line.trim()}`,
+                    size: SIZE_SMALL,
+                    font: FONT,
+                    italics: true,
+                    color: COLOR_MUTED,
+                  }),
+                ],
+                spacing: { after: 40 },
+              })
+            )
+          }
+        }
+      }
+    }
   }
 
   // Instrumentos adicionales no incluidos en la lista por defecto
@@ -583,7 +611,7 @@ export function generateValoracionDocument(data: ValoracionExportData): Document
   // ── 7. INSTRUMENTOS ──
   kids.push(sectionHeading('7', 'Instrumentos y procedimientos utilizados'))
   kids.push(instructionText('Marcar o describir los instrumentos utilizados en el proceso de valoración:'))
-  kids.push(...instrumentsSection(data.instruments))
+  kids.push(...instrumentsSection(data.instruments, data.instrumentNotes ?? {}))
   kids.push(sp(200))
 
   // ── 8. ANÁLISIS INTEGRAL ──

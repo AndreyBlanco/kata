@@ -179,3 +179,41 @@ export async function POST(req: NextRequest, { params }: Params) {
 
   return NextResponse.json({ saved: saved.length, results: saved }, { status: 200 })
 }
+
+/**
+ * DELETE /api/assessments/[studentId]/results?objectiveId=XXX
+ *
+ * Elimina el resultado de un objetivo específico para un estudiante,
+ * efectivamente marcando ese objetivo como "sin evaluar".
+ */
+export async function DELETE(req: NextRequest, { params }: Params) {
+  const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
+  if (!token?.teacherId) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
+
+  const { studentId } = await params
+  const { searchParams } = new URL(req.url)
+  const objectiveId = searchParams.get('objectiveId')
+
+  if (!objectiveId) {
+    return NextResponse.json(
+      { error: 'Se requiere el parámetro objectiveId' },
+      { status: 400 }
+    )
+  }
+
+  const student = await prisma.student.findFirst({
+    where: { id: studentId, teacherId: token.teacherId as string },
+    select: { id: true },
+  })
+  if (!student) {
+    return NextResponse.json({ error: 'Estudiante no encontrado' }, { status: 404 })
+  }
+
+  await prisma.studentAssessmentResult.deleteMany({
+    where: { studentId, objectiveId },
+  })
+
+  return NextResponse.json({ ok: true })
+}

@@ -11,6 +11,25 @@ import {
 
 type Params = { params: Promise<{ studentId: string }> }
 
+/** Combina chips seleccionados (como viñetas) con texto libre adicional */
+async function buildTextWithCodes(
+  codes: string[],
+  freeText: string,
+  fetcher: (codes: string[]) => Promise<{ label: string }[]>
+): Promise<string> {
+  const parts: string[] = []
+  if (codes.length > 0) {
+    const items = await fetcher(codes)
+    if (items.length > 0) {
+      parts.push(items.map((i) => `• ${i.label}`).join('\n'))
+    }
+  }
+  if (freeText.trim()) {
+    parts.push(freeText.trim())
+  }
+  return parts.join('\n')
+}
+
 /**
  * GET /api/assessments/[studentId]/export
  *
@@ -91,29 +110,62 @@ export async function GET(req: NextRequest, { params }: Params) {
     institutionalContext:  assessment?.institutionalContext  ?? '',
     familyContext:         assessment?.familyContext         ?? '',
 
-    // Sección 4
-    strengths: assessment?.strengths ?? '',
+    // Sección 4 — chips + texto libre
+    strengths: await buildTextWithCodes(
+      assessment?.strengthCodes ?? [],
+      assessment?.strengths ?? '',
+      (codes) => prisma.strengthItem.findMany({
+        where: { code: { in: codes } },
+        select: { label: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      })
+    ),
 
-    // Sección 5
-    barriers: assessment?.barriers ?? '',
+    // Sección 5 — chips + texto libre
+    barriers: await buildTextWithCodes(
+      assessment?.barrierCodes ?? [],
+      assessment?.barriers ?? '',
+      (codes) => prisma.barrierItem.findMany({
+        where: { code: { in: codes } },
+        select: { label: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      })
+    ),
 
     // Sección 6
     curricularSubjects,
 
     // Sección 7
-    instruments: assessment?.instruments ?? [],
+    instruments:     assessment?.instruments     ?? [],
+    instrumentNotes: (assessment?.instrumentNotes ?? {}) as Record<string, string>,
 
     // Sección 8
     integralAnalysis: assessment?.integralAnalysis ?? '',
 
-    // Sección 9
-    requiredSupports: assessment?.requiredSupports ?? '',
+    // Sección 9 — chips + texto libre
+    requiredSupports: await buildTextWithCodes(
+      assessment?.supportCodes ?? [],
+      assessment?.requiredSupports ?? '',
+      (codes) => prisma.supportItem.findMany({
+        where: { code: { in: codes } },
+        select: { label: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      })
+    ),
 
     // Sección 10
     agreements: assessment?.agreements ?? '',
 
-    // Sección 11
-    followUp: assessment?.followUp ?? '',
+    // Sección 11 — chips + texto libre
+    followUp: await buildTextWithCodes(
+      assessment?.followupCodes ?? [],
+      assessment?.followUp ?? '',
+      (codes) => prisma.followupSchedule.findMany({
+        where: { code: { in: codes } },
+        select: { label: true, sortOrder: true },
+        orderBy: { sortOrder: 'asc' },
+      })
+    ),
   }
 
   // ── 5. Generar el documento ──

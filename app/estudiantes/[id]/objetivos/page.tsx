@@ -1,235 +1,177 @@
 // app/estudiantes/[id]/objetivos/page.tsx
+//
+// Seguimiento de objetivos de apoyo del estudiante.
+// Los objetivos son los ítems de las herramientas de valoración diagnóstica
+// clasificados como NO o CON APOYO. El docente los trabaja hasta que el
+// estudiante los logre (SI). Cuando todos estén logrados se sugiere el alta.
 
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { OBJECTIVES_CATALOG, MACRO_AREAS } from '@/lib/catalogs'
-import type { CatalogObjective } from '@/lib/catalogs'
 
-interface AssignedObjective {
+// ─────────────────────────────────────────────
+// Tipos
+// ─────────────────────────────────────────────
+
+type ResultValue = 'yes' | 'no' | 'withSupport'
+
+interface AssessmentResult {
   id: string
-  macroArea: string
-  specificGoal: string
-  frequencyPerWeek: number
-  duration: number
-  interventionType: string
-  linkedProcesses: string[]
-  linkedDifficulties: string[]
-  active: boolean
+  objectiveId: string
+  result: ResultValue
+  assessedAt: string
+  objective: {
+    code: string
+    difficulty: string
+    difficultyLabel: string
+    areaCode: string
+    areaLabel: string
+    level: string
+    levelLabel: string
+    levelSort: number
+    itemOrder: number
+    description: string
+  }
 }
 
-interface PlanContext {
-  activeDifficulties: string[]
-  priorityProcesses: string[]
-  executiveSubprocesses: string[]
+type FilterTab = 'pending' | 'all' | 'achieved'
+
+// ─────────────────────────────────────────────
+// Helpers de etiqueta / color
+// ─────────────────────────────────────────────
+
+function resultBadge(result: ResultValue) {
+  switch (result) {
+    case 'yes':
+      return { label: 'Logrado', classes: 'bg-green-100 text-green-700 border-green-200' }
+    case 'withSupport':
+      return { label: 'Con apoyo', classes: 'bg-amber-100 text-amber-700 border-amber-200' }
+    case 'no':
+      return { label: 'No logrado', classes: 'bg-red-100 text-red-600 border-red-200' }
+  }
 }
 
-type Step = 'list' | 'select-area' | 'select-goal' | 'configure'
+const LEVEL_SORT: Record<string, number> = { B: 0, '1': 1, '2': 2, '3': 3, S: 99 }
 
-export default function ObjetivosEstudiantePage() {
-  const router = useRouter()
-  const params = useParams()
+// ─────────────────────────────────────────────
+// Componente principal
+// ─────────────────────────────────────────────
+
+export default function ObjetivosPage() {
+  const router  = useRouter()
+  const params  = useParams()
   const studentId = params.id as string
 
   const [studentName, setStudentName] = useState('')
-  const [objectives, setObjectives] = useState<AssignedObjective[]>([])
-  const [planContext, setPlanContext] = useState<PlanContext | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const [results, setResults]         = useState<AssessmentResult[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [savingId, setSavingId]       = useState<string | null>(null)
+  const [filter, setFilter]           = useState<FilterTab>('pending')
 
-  // Assignment flow
-  const [step, setStep] = useState<Step>('list')
-  const [selectedArea, setSelectedArea] = useState('')
-  const [selectedGoal, setSelectedGoal] = useState<CatalogObjective | null>(null)
-  const [frequency, setFrequency] = useState(2)
-  const [duration, setDuration] = useState(40)
-  const [interventionType, setInterventionType] = useState('personalizada')
+  // ── Carga inicial ──────────────────────────────────────────────────────────
 
-  const activeObjectives = objectives.filter((o) => o.active)
+  const loadData = useCallback(async () => {
+    try {
+      const [sRes, rRes] = await Promise.all([
+        fetch(`/api/students/${studentId}`),
+        fetch(`/api/assessments/${studentId}/results?withObjective=true`),
+      ])
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // Student
-        const studentRes = await fetch(`/api/students/${studentId}`)
-        if (!studentRes.ok) {
-          router.push('/estudiantes')
-          return
-        }
-        const studentData = await studentRes.json()
-        setStudentName(studentData.name)
+      if (!sRes.ok) { router.push('/estudiantes'); return }
+      const sData = await sRes.json()
+      setStudentName(sData.name)
 
-        // Plan context (for hints)
-        const planRes = await fetch(`/api/support-plans/${studentId}`)
-        if (planRes.ok) {
-          const planData = await planRes.json()
-          if (planData && planData.id) {
-            setPlanContext({
-              activeDifficulties: planData.activeDifficulties || [],
-              priorityProcesses: planData.priorityProcesses || [],
-              executiveSubprocesses: planData.executiveSubprocesses || [],
-            })
-          }
-        }
-
-        // Objectives
-        const objRes = await fetch(`/api/objectives?studentId=${studentId}`)
-        if (objRes.ok) {
-          const objData = await objRes.json()
-          setObjectives(objData)
-        } else {
-          setObjectives([])
-        }
-      } catch (err) {
-        console.error('Error cargando datos:', err)
-      } finally {
-        setLoading(false)
+      if (rRes.ok) {
+        const rData: AssessmentResult[] = await rRes.json()
+        // Solo los resultados que tienen objetivo (withObjective=true puede devolver sin)
+        setResults(rData.filter((r) => r.objective))
       }
+    } catch {
+      router.push('/estudiantes')
+    } finally {
+      setLoading(false)
     }
-    loadData()
   }, [studentId, router])
 
-  const handleSelectArea = (area: string) => {
-    setSelectedArea(area)
-    setStep('select-goal')
-  }
+  useEffect(() => { loadData() }, [loadData])
 
-  const handleSelectGoal = (goal: CatalogObjective) => {
-    setSelectedGoal(goal)
-    setStep('configure')
-  }
+  // ── Marcar objetivo ────────────────────────────────────────────────────────
 
-  const handleAssign = async () => {
-    if (!selectedGoal) return
-    setError('')
-    setSaving(true)
-
+  const markResult = async (objectiveId: string, newResult: ResultValue) => {
+    setSavingId(objectiveId)
     try {
-      const res = await fetch('/api/objectives', {
+      const res = await fetch(`/api/assessments/${studentId}/results`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          studentId,
-          catalogId: selectedGoal.id,
-          macroArea: selectedGoal.macroArea,
-          specificGoal: selectedGoal.specificGoal,
-          frequencyPerWeek: frequency,
-          duration,
-          interventionType,
-          // API will auto-link from Plan if empty
-          linkedProcesses: [],
-          linkedDifficulties: [],
-        }),
+        body: JSON.stringify([{ objectiveId, result: newResult }]),
       })
-
-      if (!res.ok) {
-        const data = await res.json()
-        setError(data.error || 'Error al asignar')
-        return
+      if (res.ok) {
+        setResults((prev) =>
+          prev.map((r) =>
+            r.objectiveId === objectiveId ? { ...r, result: newResult } : r
+          )
+        )
       }
-
-      const newObj = await res.json()
-      setObjectives([newObj, ...objectives])
-      resetFlow()
-    } catch {
-      setError('Error de conexión')
     } finally {
-      setSaving(false)
+      setSavingId(null)
     }
   }
 
-  const handleToggleActive = async (obj: AssignedObjective) => {
-    const res = await fetch(`/api/objectives/${obj.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ active: !obj.active }),
-    })
+  // ── Derivados ───────────────────────────────────────────────────────────────
 
-    if (res.ok) {
-      const updated = await res.json()
-      setObjectives(objectives.map((o) => (o.id === obj.id ? updated : o)))
-    }
-  }
-
-  const handleDelete = async (objId: string) => {
-    if (!confirm('¿Eliminar este objetivo y todas sus sesiones asociadas?')) return
-
-    const res = await fetch(`/api/objectives/${objId}`, { method: 'DELETE' })
-    if (res.ok) {
-      setObjectives(objectives.filter((o) => o.id !== objId))
-    }
-  }
-
-  const resetFlow = () => {
-    setStep('list')
-    setSelectedArea('')
-    setSelectedGoal(null)
-    setFrequency(2)
-    setDuration(40)
-    setInterventionType('personalizada')
-    setError('')
-  }
-
-  const goalsForArea = OBJECTIVES_CATALOG.filter(
-    (o) => o.macroArea === selectedArea
+  // Todos los resultados evaluados (no, withSupport, yes)
+  const evaluated = results.filter((r) =>
+    r.result === 'no' || r.result === 'withSupport' || r.result === 'yes'
   )
 
-  // Already assigned goal texts (to disable in catalog)
-  const assignedGoalTexts = objectives.map((o) => o.specificGoal)
+  const pending  = evaluated.filter((r) => r.result !== 'yes')
+  const achieved = evaluated.filter((r) => r.result === 'yes')
 
-  // Suggested areas based on plan context
-  const getSuggestedAreas = (): Set<string> => {
-    const suggested = new Set<string>()
-    if (!planContext) return suggested
+  const total      = evaluated.length
+  const doneCount  = achieved.length
+  const pct        = total > 0 ? Math.round((doneCount / total) * 100) : 0
+  const allDone    = total > 0 && doneCount === total
 
-    const { activeDifficulties, priorityProcesses } = planContext
+  // Filtrar según pestaña
+  const visible = filter === 'pending'
+    ? pending
+    : filter === 'achieved'
+    ? achieved
+    : evaluated
 
-    // Map difficulties to relevant macro areas
-    if (activeDifficulties.includes('Dislexia')) {
-      suggested.add('Lectoescritura')
-      suggested.add('Percepción Visual')
-    }
-    if (activeDifficulties.includes('Disortografía')) {
-      suggested.add('Ortografía')
-      suggested.add('Lectoescritura')
-    }
-    if (activeDifficulties.includes('Disgrafía')) {
-      suggested.add('Grafía')
-      suggested.add('Motricidad')
-    }
-    if (activeDifficulties.includes('Discalculia')) {
-      suggested.add('Matemáticas')
-    }
-    if (activeDifficulties.includes('Dispraxia')) {
-      suggested.add('Motricidad')
-    }
-    if (activeDifficulties.includes('TDA')) {
-      suggested.add('Contexto de Aula')
-      suggested.add('Madurez Socioemocional')
-    }
+  // Agrupar por dificultad → área → objetivos
+  type AreaGroup   = { areaLabel: string; levelSort: number; items: AssessmentResult[] }
+  type DiffGroup   = { difficultyLabel: string; areas: Map<string, AreaGroup> }
+  const grouped    = new Map<string, DiffGroup>()
 
-    // Map processes
-    if (priorityProcesses.includes('Percepción')) {
-      suggested.add('Percepción Visual')
-      suggested.add('Percepción Auditiva')
+  for (const r of visible) {
+    const { difficulty, difficultyLabel, areaCode, areaLabel, levelSort } = r.objective
+    if (!grouped.has(difficulty)) {
+      grouped.set(difficulty, { difficultyLabel, areas: new Map() })
     }
-    if (priorityProcesses.includes('Atención')) {
-      suggested.add('Contexto de Aula')
+    const dg = grouped.get(difficulty)!
+    if (!dg.areas.has(areaCode)) {
+      dg.areas.set(areaCode, { areaLabel, levelSort, items: [] })
     }
-    if (priorityProcesses.includes('Memoria')) {
-      suggested.add('Lectoescritura')
-      suggested.add('Matemáticas')
-    }
-    if (priorityProcesses.includes('Emoción') || priorityProcesses.includes('Motivación')) {
-      suggested.add('Madurez Socioemocional')
-    }
-
-    return suggested
+    dg.areas.get(areaCode)!.items.push(r)
   }
 
-  const suggestedAreas = getSuggestedAreas()
+  // Ordenar items dentro de cada área: no → withSupport → yes, luego por levelSort + itemOrder
+  for (const [, dg] of grouped) {
+    for (const [, ag] of dg.areas) {
+      ag.items.sort((a, b) => {
+        const priority = { no: 0, withSupport: 1, yes: 2 }
+        const pp = priority[a.result] - priority[b.result]
+        if (pp !== 0) return pp
+        const ls = (LEVEL_SORT[a.objective.level] ?? 0) - (LEVEL_SORT[b.objective.level] ?? 0)
+        if (ls !== 0) return ls
+        return a.objective.itemOrder - b.objective.itemOrder
+      })
+    }
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
@@ -241,384 +183,250 @@ export default function ObjetivosEstudiantePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
+
+      {/* ── Header ── */}
       <div className="bg-white border-b px-4 py-4">
-        <div className="max-w-lg mx-auto">
+        <div className="max-w-2xl mx-auto">
           <button
-            onClick={() =>
-              step === 'list'
-                ? router.push(`/estudiantes/${studentId}`)
-                : resetFlow()
-            }
+            onClick={() => router.push(`/estudiantes/${studentId}`)}
             className="text-sm text-blue-600 mb-2 hover:underline"
           >
-            ← {step === 'list' ? studentName : 'Volver'}
+            ← {studentName}
           </button>
-          <h1 className="text-xl font-bold text-gray-900">
-            {step === 'list' && 'Objetivos de Apoyo'}
-            {step === 'select-area' && 'Seleccionar Área'}
-            {step === 'select-goal' && selectedArea}
-            {step === 'configure' && 'Configurar Objetivo'}
-          </h1>
-          {step === 'list' && (
-            <p className="text-sm text-gray-500">
-              {activeObjectives.length} activo(s)
-            </p>
-          )}
+          <h1 className="text-xl font-bold text-gray-900">Objetivos de Apoyo</h1>
+          <p className="text-sm text-gray-500">
+            Ítems clasificados como No logrado o Con apoyo en la valoración diagnóstica
+          </p>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto p-4">
+      <div className="max-w-2xl mx-auto p-4 space-y-4">
 
-        {/* ── LIST VIEW ── */}
-        {step === 'list' && (
-          <div className="space-y-4">
+        {/* ── Sin datos ── */}
+        {total === 0 && (
+          <div className="bg-white rounded-lg border p-8 text-center">
+            <p className="text-gray-400 font-medium">Sin objetivos de apoyo registrados</p>
+            <p className="text-sm text-gray-400 mt-1">
+              Completa las herramientas de valoración diagnóstica para generar objetivos.
+            </p>
+            <button
+              onClick={() => router.push(`/estudiantes/${studentId}/valoracion`)}
+              className="mt-4 text-sm text-blue-600 hover:underline"
+            >
+              Ir a Valoración Integral
+            </button>
+          </div>
+        )}
 
-            {/* Plan context banner */}
-            {planContext && (planContext.activeDifficulties.length > 0 || planContext.priorityProcesses.length > 0) && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-blue-700 mb-1.5">
-                  Contexto del Plan de Apoyo
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {planContext.priorityProcesses.map((p) => (
-                    <span key={p} className="text-xs px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full">
-                      {p}
-                    </span>
-                  ))}
-                  {planContext.activeDifficulties.map((d) => (
-                    <span key={d} className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                      {d}
-                    </span>
-                  ))}
+        {total > 0 && (
+          <>
+            {/* ── Barra de progreso general ── */}
+            <div className="bg-white rounded-lg border p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-900">Progreso general</span>
+                <span className="text-sm font-bold text-gray-700">
+                  {doneCount} / {total} logrado{doneCount !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className="h-3 bg-green-500 rounded-full transition-all duration-500"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-xs text-gray-400">
+                <span>{pending.length} pendiente{pending.length !== 1 ? 's' : ''}</span>
+                <span>{pct}%</span>
+              </div>
+            </div>
+
+            {/* ── Banner de alta sugerida ── */}
+            {allDone && (
+              <div className="bg-green-50 border border-green-300 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">🎓</span>
+                  <div>
+                    <p className="text-sm font-semibold text-green-900">
+                      ¡Todos los objetivos logrados!
+                    </p>
+                    <p className="text-sm text-green-800 mt-0.5">
+                      El estudiante ha superado todos los ítems de la valoración diagnóstica.
+                      Se sugiere evaluar el alta del estudiante del sistema de apoyo educativo.
+                    </p>
+                    <button
+                      onClick={() => router.push(`/estudiantes/${studentId}/plan`)}
+                      className="mt-2 text-sm text-green-700 underline hover:no-underline font-medium"
+                    >
+                      Revisar Plan de Apoyo para continuar
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* No plan warning */}
-            {!planContext && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                <p className="text-sm text-amber-800">
-                  💡 <strong>Sugerencia:</strong> Completar el{' '}
-                  <button
-                    onClick={() => router.push(`/estudiantes/${studentId}/plan`)}
-                    className="text-amber-900 underline hover:no-underline font-medium"
-                  >
-                    Plan de Apoyo
-                  </button>{' '}
-                  para recibir sugerencias de áreas relevantes.
-                </p>
-              </div>
-            )}
-
-            {/* Add button */}
-            <button
-              onClick={() => setStep('select-area')}
-              className="w-full py-3 px-4 bg-blue-600 text-white rounded-md
-                         font-medium hover:bg-blue-700 transition-colors"
-            >
-              + Asignar Objetivo
-            </button>
-
-            {/* Objectives list */}
-            {objectives.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-gray-400">No hay objetivos asignados</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Asigna objetivos del catálogo para comenzar a registrar sesiones
-                </p>
-              </div>
-            ) : (
-              objectives.map((obj) => (
-                <div
-                  key={obj.id}
-                  className={`bg-white rounded-lg shadow-sm border p-4 ${
-                    !obj.active ? 'opacity-60' : ''
+            {/* ── Pestañas de filtro ── */}
+            <div className="flex bg-white rounded-lg border overflow-hidden">
+              {([
+                ['pending',  `Pendientes (${pending.length})`],
+                ['all',      `Todos (${total})`],
+                ['achieved', `Logrados (${doneCount})`],
+              ] as [FilterTab, string][]).map(([tab, label]) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilter(tab)}
+                  className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                    filter === tab
+                      ? 'bg-blue-600 text-white'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                      {obj.macroArea}
-                    </span>
-                    <span
-                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                        obj.active
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
-                      {obj.active ? 'Activo' : 'Inactivo'}
-                    </span>
-                  </div>
+                  {label}
+                </button>
+              ))}
+            </div>
 
-                  <p className="text-sm font-medium text-gray-900 mb-2">
-                    {obj.specificGoal}
-                  </p>
-
-                  <div className="flex gap-3 text-xs text-gray-500 mb-2">
-                    <span>{obj.frequencyPerWeek}x/semana</span>
-                    <span>{obj.duration} min</span>
-                    <span className="capitalize">{obj.interventionType}</span>
-                  </div>
-
-                  {/* Linked tags */}
-                  {(obj.linkedProcesses.length > 0 || obj.linkedDifficulties.length > 0) && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {obj.linkedProcesses.map((p) => (
-                        <span key={p} className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
-                          {p}
-                        </span>
-                      ))}
-                      {obj.linkedDifficulties.map((d) => (
-                        <span key={d} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
-                          {d}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleToggleActive(obj)}
-                      className="text-xs px-3 py-1 rounded border border-gray-300
-                                 text-gray-600 hover:bg-gray-50 transition-colors"
-                    >
-                      {obj.active ? 'Desactivar' : 'Activar'}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(obj.id)}
-                      className="text-xs px-3 py-1 rounded border border-red-200
-                                 text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* ── SELECT AREA ── */}
-        {step === 'select-area' && (
-          <div className="space-y-2">
-            {/* Suggested areas first */}
-            {suggestedAreas.size > 0 && (
-              <div className="mb-4">
-                <p className="text-xs font-semibold text-green-700 mb-2 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-500 rounded-full" />
-                  Sugeridas según el Plan de Apoyo
+            {/* ── Sin resultados en filtro ── */}
+            {visible.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-gray-400 text-sm">
+                  {filter === 'pending'
+                    ? 'No hay objetivos pendientes — ¡excelente progreso!'
+                    : 'No hay objetivos en esta categoría.'}
                 </p>
-                {MACRO_AREAS.filter((a) => suggestedAreas.has(a)).map((area) => {
-                  const count = OBJECTIVES_CATALOG.filter(
-                    (o) => o.macroArea === area
-                  ).length
-                  return (
-                    <button
-                      key={area}
-                      onClick={() => handleSelectArea(area)}
-                      className="w-full text-left bg-green-50 rounded-lg border border-green-200 p-4
-                                 hover:border-green-400 transition-colors mb-2"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-medium text-gray-900">{area}</h3>
-                          <p className="text-xs text-gray-500">{count} objetivos</p>
-                        </div>
-                        <span className="text-green-500">→</span>
+              </div>
+            )}
+
+            {/* ── Lista agrupada ── */}
+            {[...grouped.entries()].map(([diff, dg]) => {
+              const diffItems    = visible.filter((r) => r.objective.difficulty === diff)
+              const diffAchieved = diffItems.filter((r) => r.result === 'yes').length
+              const diffTotal    = diffItems.length
+              const diffPct      = diffTotal > 0 ? Math.round((diffAchieved / diffTotal) * 100) : 0
+
+              // Contar totales sin filtro para badge
+              const allDiffItems = evaluated.filter((r) => r.objective.difficulty === diff)
+              const allDiffDone  = allDiffItems.filter((r) => r.result === 'yes').length
+
+              return (
+                <div key={diff} className="bg-white rounded-lg border overflow-hidden">
+
+                  {/* Cabecera de dificultad */}
+                  <div className="px-4 py-3 bg-blue-50 border-b border-blue-100">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-blue-900 text-sm">
+                        {dg.difficultyLabel}
+                      </span>
+                      <span className="text-xs text-blue-600 font-medium">
+                        {allDiffDone} / {allDiffItems.length}
+                      </span>
+                    </div>
+                    {/* Mini barra por dificultad */}
+                    <div className="mt-2 h-1.5 bg-blue-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-1.5 bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ width: `${diffPct}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Áreas */}
+                  {[...dg.areas.entries()].map(([areaCode, ag]) => (
+                    <div key={areaCode}>
+                      {/* Sub-cabecera de área */}
+                      <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          {ag.areaLabel}
+                        </span>
                       </div>
-                    </button>
-                  )
-                })}
 
-                <div className="flex items-center gap-3 my-3">
-                  <div className="h-px bg-gray-200 flex-1" />
-                  <span className="text-xs text-gray-400">Todas las áreas</span>
-                  <div className="h-px bg-gray-200 flex-1" />
-                </div>
-              </div>
-            )}
+                      {/* Objetivos del área */}
+                      <div className="divide-y divide-gray-100">
+                        {ag.items.map((r) => {
+                          const badge    = resultBadge(r.result)
+                          const isSaving = savingId === r.objectiveId
+                          const isDone   = r.result === 'yes'
 
-            {/* All areas */}
-            {MACRO_AREAS.filter((a) => !suggestedAreas.has(a)).map((area) => {
-              const count = OBJECTIVES_CATALOG.filter(
-                (o) => o.macroArea === area
-              ).length
-              return (
-                <button
-                  key={area}
-                  onClick={() => handleSelectArea(area)}
-                  className="w-full text-left bg-white rounded-lg shadow-sm border p-4
-                             hover:border-blue-300 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-900">{area}</h3>
-                      <p className="text-xs text-gray-500">{count} objetivos</p>
+                          return (
+                            <div
+                              key={r.objectiveId}
+                              className={`px-4 py-3 flex items-start gap-3 transition-colors ${
+                                isDone ? 'bg-green-50/50' : ''
+                              }`}
+                            >
+                              {/* Indicador de estado */}
+                              <div className="mt-0.5 shrink-0">
+                                {isDone ? (
+                                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500 text-white text-xs font-bold">
+                                    ✓
+                                  </span>
+                                ) : (
+                                  <span className={`flex h-5 w-5 items-center justify-center rounded-full border text-xs font-bold ${
+                                    r.result === 'no'
+                                      ? 'border-red-300 text-red-400 bg-red-50'
+                                      : 'border-amber-300 text-amber-500 bg-amber-50'
+                                  }`}>
+                                    {r.result === 'no' ? '✗' : '~'}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Contenido */}
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm leading-snug ${isDone ? 'text-gray-500 line-through' : 'text-gray-800'}`}>
+                                  {r.objective.description}
+                                </p>
+                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                  <span className="text-xs text-gray-400">
+                                    {r.objective.levelLabel}
+                                  </span>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${badge.classes}`}>
+                                    {badge.label}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Acción */}
+                              <div className="shrink-0 flex flex-col gap-1">
+                                {!isDone ? (
+                                  <button
+                                    onClick={() => markResult(r.objectiveId, 'yes')}
+                                    disabled={isSaving}
+                                    className="text-xs px-3 py-1.5 bg-green-600 text-white rounded-md
+                                               font-medium hover:bg-green-700 transition-colors
+                                               disabled:bg-green-300"
+                                  >
+                                    {isSaving ? '...' : 'Logrado'}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => markResult(r.objectiveId, 'withSupport')}
+                                    disabled={isSaving}
+                                    className="text-xs px-3 py-1.5 border border-gray-300 text-gray-500
+                                               rounded-md hover:bg-gray-50 transition-colors
+                                               disabled:opacity-50"
+                                  >
+                                    {isSaving ? '...' : 'Deshacer'}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
                     </div>
-                    <span className="text-gray-400">→</span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── SELECT GOAL ── */}
-        {step === 'select-goal' && (
-          <div className="space-y-2">
-            {goalsForArea.map((goal) => {
-              const isAssigned = assignedGoalTexts.includes(goal.specificGoal)
-              return (
-                <button
-                  key={goal.id}
-                  onClick={() => !isAssigned && handleSelectGoal(goal)}
-                  disabled={isAssigned}
-                  className={`w-full text-left bg-white rounded-lg shadow-sm border p-4
-                    transition-colors ${
-                      isAssigned
-                        ? 'opacity-40 cursor-not-allowed'
-                        : 'hover:border-blue-300'
-                    }`}
-                >
-                  <p className="text-sm text-gray-900">{goal.specificGoal}</p>
-                  {isAssigned && (
-                    <p className="text-xs text-gray-400 mt-1">Ya asignado</p>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-        )}
-
-        {/* ── CONFIGURE ── */}
-        {step === 'configure' && selectedGoal && (
-          <div className="space-y-4">
-            {/* Selected goal summary */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-xs text-blue-600 font-medium">{selectedGoal.macroArea}</p>
-              <p className="text-sm text-blue-900 font-medium mt-1">
-                {selectedGoal.specificGoal}
-              </p>
-            </div>
-
-            {/* Plan context reminder */}
-            {planContext && (planContext.activeDifficulties.length > 0 || planContext.priorityProcesses.length > 0) && (
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                <p className="text-xs text-gray-500 mb-1.5">
-                  Se vincularán automáticamente del Plan:
-                </p>
-                <div className="flex flex-wrap gap-1">
-                  {planContext.priorityProcesses.map((p) => (
-                    <span key={p} className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded">
-                      {p}
-                    </span>
-                  ))}
-                  {planContext.activeDifficulties.map((d) => (
-                    <span key={d} className="text-[10px] px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">
-                      {d}
-                    </span>
                   ))}
                 </div>
-              </div>
+              )
+            })}
+
+            {/* ── Nota al pie ── */}
+            {filter !== 'achieved' && pending.length > 0 && (
+              <p className="text-xs text-center text-gray-400 pb-2">
+                Marca cada objetivo como <strong>Logrado</strong> conforme el estudiante lo supere.
+                Al completar todos, se sugerirá el proceso de alta.
+              </p>
             )}
-
-            {/* Frequency */}
-            <div className="bg-white rounded-lg shadow-sm border p-4">
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Frecuencia por semana
-              </label>
-              <div className="flex gap-3">
-                {[1, 2, 3].map((f) => (
-                  <button
-                    key={f}
-                    type="button"
-                    onClick={() => setFrequency(f)}
-                    className={`flex-1 py-2 rounded-md border text-sm font-medium
-                      transition-colors ${
-                        frequency === f
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                      }`}
-                  >
-                    {f}x
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Duration */}
-            <div className="bg-white rounded-lg shadow-sm border p-4">
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Duración por sesión
-              </label>
-              <div className="flex gap-3">
-                {[20, 40, 60].map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => setDuration(d)}
-                    className={`flex-1 py-2 rounded-md border text-sm font-medium
-                      transition-colors ${
-                        duration === d
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
-                      }`}
-                  >
-                    {d} min
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Intervention type */}
-            <div className="bg-white rounded-lg shadow-sm border p-4">
-              <label className="block text-sm font-semibold text-gray-900 mb-3">
-                Tipo de intervención
-              </label>
-              <div className="space-y-2">
-                {[
-                  { value: 'aula', label: 'En aula (con grupo)' },
-                  { value: 'personalizada', label: 'Personalizada (individual)' },
-                  { value: 'ambas', label: 'Ambas modalidades' },
-                ].map((opt) => (
-                  <label
-                    key={opt.value}
-                    className={`flex items-center p-3 rounded-md border cursor-pointer
-                      transition-colors ${
-                        interventionType === opt.value
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                  >
-                    <input
-                      type="radio"
-                      name="interventionType"
-                      value={opt.value}
-                      checked={interventionType === opt.value}
-                      onChange={(e) => setInterventionType(e.target.value)}
-                      className="mr-3"
-                    />
-                    <span className="text-sm text-gray-700">{opt.label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Error */}
-            {error && <p className="text-sm text-red-600 text-center">{error}</p>}
-
-            {/* Assign button */}
-            <button
-              onClick={handleAssign}
-              disabled={saving}
-              className="w-full py-3 px-4 bg-blue-600 text-white rounded-md
-                         font-medium hover:bg-blue-700 transition-colors
-                         disabled:bg-blue-300 disabled:cursor-not-allowed"
-            >
-              {saving ? 'Asignando...' : 'Asignar Objetivo'}
-            </button>
-          </div>
+          </>
         )}
       </div>
     </div>

@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { INSTRUMENTS_CATALOG } from '@/lib/catalogs'
+// INSTRUMENTS_CATALOG migrado a BD — ya no se importa desde catalogs
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -18,6 +18,22 @@ type ParticipantRoleItem = {
 type CatalogItem = {
   code: string; label: string; isCore?: boolean
 }
+
+type InstrumentItem = {
+  id: string; code: string; label: string; category: string
+  isCore: boolean; status: string; suggestedBy: string | null
+}
+
+type DifficultyMeta = {
+  difficulty: string
+  difficultyLabel: string
+}
+
+// Orden de presentación de dificultades en la sección de herramientas
+const DIFFICULTY_ORDER = [
+  'DISLEXIA', 'DISORTOGRAFIA', 'DISGRAFIA', 'DISCALCULIA',
+  'DISPRAXIA', 'TDA', 'APZ_LENTO', 'TANV',
+]
 
 type CurricularRow = {
   id?: string
@@ -334,11 +350,17 @@ export default function ValoracionIntegralPage() {
   const [generatingPlan, setGeneratingPlan] = useState(false)
 
   // ── Catalog state ─────────────────────────────────────────────────────────
-  const [participantRoles, setParticipantRoles] = useState<Record<string, ParticipantRoleItem[]>>({})
-  const [strengthCatalog,  setStrengthCatalog]  = useState<Record<string, CatalogItem[]>>({})
-  const [barrierCatalog,   setBarrierCatalog]   = useState<Record<string, CatalogItem[]>>({})
-  const [supportCatalog,   setSupportCatalog]   = useState<Record<string, CatalogItem[]>>({})
-  const [followupCatalog,  setFollowupCatalog]  = useState<Record<string, CatalogItem[]>>({})
+  const [participantRoles,   setParticipantRoles]   = useState<Record<string, ParticipantRoleItem[]>>({})
+  const [strengthCatalog,    setStrengthCatalog]    = useState<Record<string, CatalogItem[]>>({})
+  const [barrierCatalog,     setBarrierCatalog]     = useState<Record<string, CatalogItem[]>>({})
+  const [supportCatalog,     setSupportCatalog]     = useState<Record<string, CatalogItem[]>>({})
+  const [followupCatalog,    setFollowupCatalog]    = useState<Record<string, CatalogItem[]>>({})
+  const [instrumentCatalog,  setInstrumentCatalog]  = useState<InstrumentItem[]>([])
+  const [addingInstrument,   setAddingInstrument]   = useState(false)
+  // Herramientas diagnósticas — catálogo de dificultades + progreso por dificultad
+  const [difficulties,       setDifficulties]       = useState<DifficultyMeta[]>([])
+  const [toolProgress,       setToolProgress]       = useState<Record<string, number>>({})
+  const [generatingCurricular, setGeneratingCurricular] = useState(false)
 
   // ── Assessment status ─────────────────────────────────────────────────────
   const [assessmentStatus, setAssessmentStatus]     = useState<AssessmentStatus>('active')
@@ -365,6 +387,7 @@ export default function ValoracionIntegralPage() {
   const [barriers, setBarriers]                     = useState('')
   const [barrierCodes, setBarrierCodes]             = useState<string[]>([])
   const [instruments, setInstruments]               = useState<string[]>([])
+  const [instrumentNotes, setInstrumentNotes]       = useState<Record<string, string>>({})
   const [otherInstrument, setOtherInstrument]       = useState('')
   const [integralAnalysis, setIntegralAnalysis]     = useState('')
   const [requiredSupports, setRequiredSupports]     = useState('')
@@ -384,7 +407,7 @@ export default function ValoracionIntegralPage() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [sRes, aRes, rolesRes, strengthRes, barrierRes, supportRes, followupRes, curricularRes] =
+        const [sRes, aRes, rolesRes, strengthRes, barrierRes, supportRes, followupRes, curricularRes, instrRes, diffRes, resultsRes] =
           await Promise.all([
             fetch(`/api/students/${studentId}`),
             fetch(`/api/assessments/${studentId}`),
@@ -394,6 +417,9 @@ export default function ValoracionIntegralPage() {
             fetch('/api/catalogs/support-items?grouped=true'),
             fetch('/api/catalogs/followup-schedules?grouped=true'),
             fetch(`/api/assessments/${studentId}/curricular-subjects`),
+            fetch('/api/catalogs/instruments'),
+            fetch('/api/catalogs/assessment-objectives?grouped=difficulties'),
+            fetch(`/api/assessments/${studentId}/results?withObjective=true`),
           ])
 
         if (!sRes.ok) throw new Error('Estudiante no encontrado')
@@ -409,6 +435,31 @@ export default function ValoracionIntegralPage() {
         if (supportRes.ok)    setSupportCatalog(await supportRes.json())
         if (followupRes.ok)   setFollowupCatalog(await followupRes.json())
         if (curricularRes.ok) setCurricularSubjects(await curricularRes.json())
+        if (instrRes.ok)      setInstrumentCatalog(await instrRes.json())
+
+        // Dificultades disponibles (para la sección de herramientas)
+        if (diffRes.ok) {
+          const diffs: DifficultyMeta[] = await diffRes.json()
+          // Ordenar según DIFFICULTY_ORDER
+          setDifficulties(
+            [...diffs].sort((a, b) => {
+              const ia = DIFFICULTY_ORDER.indexOf(a.difficulty)
+              const ib = DIFFICULTY_ORDER.indexOf(b.difficulty)
+              return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+            })
+          )
+        }
+
+        // Progreso por dificultad (cuántos objetivos tiene resultado)
+        if (resultsRes.ok) {
+          const allResults: { objective: { difficulty: string } }[] = await resultsRes.json()
+          const progress: Record<string, number> = {}
+          for (const r of allResults) {
+            const d = r.objective?.difficulty
+            if (d) progress[d] = (progress[d] ?? 0) + 1
+          }
+          setToolProgress(progress)
+        }
 
         if (aRes.ok) {
           const data = await aRes.json()
@@ -427,6 +478,7 @@ export default function ValoracionIntegralPage() {
             setBarriers(data.barriers || '')
             setBarrierCodes(data.barrierCodes || [])
             setInstruments(data.instruments || [])
+            setInstrumentNotes((data.instrumentNotes as Record<string, string>) || {})
             setIntegralAnalysis(data.integralAnalysis || '')
             setRequiredSupports(data.requiredSupports || '')
             setSupportCodes(data.supportCodes || [])
@@ -455,7 +507,7 @@ export default function ValoracionIntegralPage() {
 
   const hasContent = (key: string): boolean => {
     switch (key) {
-      case 'datos':        return !!(elaborationDate || bsaReceivedDate)
+      case 'datos':        return !!(bsaReceivedDate)
       case 'participants': return participants.length > 0
       case 'context':      return !!(classroomContext || institutionalContext || familyContext)
       case 'strengths':    return !!(strengths.trim() || strengthCodes.length)
@@ -566,14 +618,126 @@ export default function ValoracionIntegralPage() {
     setIsDirty(true)
   }
 
-  const addOtherInstrument = () => {
+  const addOtherInstrument = async () => {
     const trimmed = otherInstrument.trim()
-    if (trimmed && !instruments.includes(trimmed)) {
-      setInstruments((prev) => [...prev, trimmed])
+    if (!trimmed) return
+
+    // Si ya está en el catálogo (cualquier estado), solo lo seleccionamos
+    const inCatalog = instrumentCatalog.find(
+      (i) => i.label.toLowerCase() === trimmed.toLowerCase()
+    )
+    if (inCatalog) {
+      if (!instruments.includes(inCatalog.label)) {
+        setInstruments((prev) => [...prev, inCatalog.label])
+        setIsDirty(true)
+      }
       setOtherInstrument('')
-      setIsDirty(true)
+      return
+    }
+
+    // No está en el catálogo → sugerirlo a BD (pendingApproval) y seleccionarlo
+    setAddingInstrument(true)
+    try {
+      const res = await fetch('/api/catalogs/instruments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: trimmed, category: 'otro' }),
+      })
+      const data = await res.json()
+      const newItem: InstrumentItem = res.status === 409 ? data.instrument : data
+      // Agregar al catálogo local si no existe aún
+      setInstrumentCatalog((prev) =>
+        prev.some((i) => i.id === newItem.id) ? prev : [...prev, newItem]
+      )
+      if (!instruments.includes(newItem.label)) {
+        setInstruments((prev) => [...prev, newItem.label])
+        setIsDirty(true)
+      }
+    } finally {
+      setAddingInstrument(false)
+      setOtherInstrument('')
     }
   }
+
+  // ── Generar desempeño curricular desde resultados de herramientas ────────
+  const generateCurricularFromTools = useCallback(async () => {
+    setGeneratingCurricular(true)
+    try {
+      const res = await fetch(`/api/assessments/${studentId}/results?withObjective=true`)
+      if (!res.ok) return
+      const allResults: {
+        result: string
+        objective: {
+          difficulty: string; difficultyLabel: string
+          areaLabel: string; description: string
+        }
+      }[] = await res.json()
+
+      if (allResults.length === 0) return
+
+      // Mapeo dificultad → asignatura curricular
+      const DIFF_TO_SUBJECT: Record<string, string> = {
+        DISLEXIA:       'Español — Lectura y comprensión',
+        DISGRAFIA:      'Español — Escritura',
+        DISORTOGRAFIA:  'Español — Ortografía',
+        DISCALCULIA:    'Matemáticas',
+        DISPRAXIA:      'Desarrollo motriz',
+        TDA:            'Comportamiento y atención',
+        APZ_LENTO:      'Aprendizaje general',
+        TANV:           'Aprendizaje no verbal',
+      }
+
+      // Agrupar resultados por asignatura curricular
+      const subjectMap: Record<string, {
+        label: string
+        yes: string[]; no: string[]; withSupport: string[]
+      }> = {}
+
+      for (const r of allResults) {
+        const diff    = r.objective?.difficulty?.toUpperCase() ?? ''
+        const subject = DIFF_TO_SUBJECT[diff] ?? r.objective?.difficultyLabel ?? diff
+        if (!subjectMap[subject]) {
+          subjectMap[subject] = { label: subject, yes: [], no: [], withSupport: [] }
+        }
+        const desc = r.objective?.description ?? ''
+        if (r.result === 'yes')         subjectMap[subject].yes.push(desc)
+        else if (r.result === 'no')     subjectMap[subject].no.push(desc)
+        else if (r.result === 'withSupport') subjectMap[subject].withSupport.push(desc)
+      }
+
+      // Construir filas curriculares
+      const rows: CurricularRow[] = Object.values(subjectMap).map((s, idx) => ({
+        subject:        s.label,
+        goalsToAchieve: s.no.map((d) => `• ${d}`).join('\n'),
+        progress:       s.yes.map((d) => `• ${d}`).join('\n'),
+        supportNeeds:   s.withSupport.map((d) => `• ${d}`).join('\n'),
+        sortOrder:      idx,
+      }))
+
+      // Guardar en BD vía la API de curricular-subjects (reemplaza todo)
+      const saveRes = await fetch(`/api/assessments/${studentId}/curricular-subjects`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(rows),
+      })
+      if (saveRes.ok) {
+        const saved: CurricularRow[] = await saveRes.json()
+        setCurricularSubjects(saved)
+        setCurricularDirty(false)
+        setCurricularSaved(true)
+        setTimeout(() => setCurricularSaved(false), 3000)
+        // Actualizar progreso de herramientas
+        const progress: Record<string, number> = {}
+        for (const r of allResults) {
+          const d = r.objective?.difficulty
+          if (d) progress[d] = (progress[d] ?? 0) + 1
+        }
+        setToolProgress(progress)
+      }
+    } finally {
+      setGeneratingCurricular(false)
+    }
+  }, [studentId])
 
   // ── Save content ──────────────────────────────────────────────────────────
   const handleSave = async (e?: React.FormEvent) => {
@@ -587,7 +751,6 @@ export default function ValoracionIntegralPage() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          elaborationDate:     elaborationDate || null,
           bsaReceivedDate:     bsaReceivedDate || null,
           participants,
           classroomContext,
@@ -598,6 +761,7 @@ export default function ValoracionIntegralPage() {
           barriers,
           barrierCodes,
           instruments,
+          instrumentNotes,
           integralAnalysis,
           requiredSupports,
           supportCodes,
@@ -906,29 +1070,19 @@ export default function ValoracionIntegralPage() {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-gray-100">
-              <div>
-                <label htmlFor="bsaDate" className="block text-xs font-medium text-gray-600 mb-1">
-                  Fecha recibido BSA
-                </label>
-                <input
-                  id="bsaDate" type="date" value={bsaReceivedDate}
-                  onChange={(e) => { setBsaReceivedDate(e.target.value); setIsDirty(true) }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                />
-              </div>
-              <div>
-                <label htmlFor="elabDate" className="block text-xs font-medium text-gray-600 mb-1">
-                  Fecha de elaboración
-                </label>
-                <input
-                  id="elabDate" type="date" value={elaborationDate}
-                  onChange={(e) => { setElaborationDate(e.target.value); setIsDirty(true) }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
-                             focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                />
-              </div>
+            <div className="pt-3 border-t border-gray-100">
+              <label htmlFor="bsaDate" className="block text-xs font-medium text-gray-600 mb-1">
+                Fecha recibido BSA
+              </label>
+              <input
+                id="bsaDate" type="date" value={bsaReceivedDate}
+                onChange={(e) => { setBsaReceivedDate(e.target.value); setIsDirty(true) }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm
+                           focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                La fecha de elaboración se registra automáticamente al finalizar la valoración.
+              </p>
             </div>
           </div>
 
@@ -1127,6 +1281,29 @@ export default function ValoracionIntegralPage() {
               y necesidades de apoyo. Conforme el periodo avanza puede actualizar esta tabla.
             </p>
 
+            {/* Generar desde herramientas */}
+            {Object.values(toolProgress).some((v) => v > 0) && (
+              <button
+                type="button"
+                onClick={generateCurricularFromTools}
+                disabled={generatingCurricular}
+                className="w-full mb-3 py-2.5 px-4 text-sm font-medium rounded-lg border-2
+                           border-blue-300 text-blue-700 bg-blue-50 hover:bg-blue-100
+                           transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {generatingCurricular ? (
+                  <>Generando…</>
+                ) : (
+                  <>
+                    ✦ Generar desde herramientas de valoración
+                    <span className="text-xs font-normal text-blue-500">
+                      ({Object.values(toolProgress).reduce((a, b) => a + b, 0)} resultados)
+                    </span>
+                  </>
+                )}
+              </button>
+            )}
+
             {/* Subject cards */}
             <div className="space-y-3 mb-3">
               {curricularSubjects.length === 0 && (
@@ -1199,56 +1376,182 @@ export default function ValoracionIntegralPage() {
             <p className="text-xs text-gray-500 mb-3">
               Instrumentos utilizados en el proceso de valoración.
             </p>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {INSTRUMENTS_CATALOG.map((inst) => (
-                <button
-                  key={inst} type="button"
-                  onClick={() => toggleInstrument(inst)}
-                  className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
-                    instruments.includes(inst)
-                      ? 'bg-green-100 border-green-400 text-green-800'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
-                  }`}
-                >
-                  {inst}
-                </button>
-              ))}
-            </div>
+
+            {/* Instrumentos del catálogo (approved + propios pendientes) */}
+            {instrumentCatalog.length > 0 && (
+              <div className="space-y-2 mb-3">
+                {/* Agrupa por categoría */}
+                {Object.entries(
+                  instrumentCatalog.reduce<Record<string, typeof instrumentCatalog>>((acc, inst) => {
+                    const cat = inst.category || 'otro'
+                    if (!acc[cat]) acc[cat] = []
+                    acc[cat].push(inst)
+                    return acc
+                  }, {})
+                ).map(([cat, catInstruments]) => {
+                  const CAT_LABELS: Record<string, string> = {
+                    observacion: 'Observación', entrevista: 'Entrevista',
+                    curriculum: 'Basado en currículo', escala: 'Escalas y listas',
+                    prueba_formal: 'Prueba formal', otro: 'Otro',
+                  }
+                  return (
+                    <div key={cat}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                        {CAT_LABELS[cat] ?? cat}
+                      </p>
+                      <div className="space-y-1.5">
+                        {catInstruments.map((inst) => {
+                          const selected  = instruments.includes(inst.label)
+                          const isPending = inst.status === 'pendingApproval'
+                          return (
+                            <div key={inst.id}>
+                              <button
+                                type="button"
+                                onClick={() => toggleInstrument(inst.label)}
+                                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                                  selected
+                                    ? 'bg-green-100 border-green-400 text-green-800'
+                                    : 'bg-gray-50 border-gray-200 text-gray-600 hover:border-gray-300'
+                                }`}
+                              >
+                                {inst.label}
+                                {isPending && (
+                                  <span className="text-xs bg-yellow-100 text-yellow-700 border border-yellow-300 rounded px-1 py-0.5">
+                                    pendiente
+                                  </span>
+                                )}
+                              </button>
+                              {/* Textarea de notas — visible solo cuando el instrumento está seleccionado */}
+                              {selected && (
+                                <textarea
+                                  rows={2}
+                                  value={instrumentNotes[inst.label] ?? ''}
+                                  onChange={(e) => {
+                                    setInstrumentNotes((prev) => ({
+                                      ...prev,
+                                      [inst.label]: e.target.value,
+                                    }))
+                                    setIsDirty(true)
+                                  }}
+                                  placeholder={`Observaciones / hallazgos — ${inst.label}…`}
+                                  className="mt-1.5 w-full px-3 py-2 border border-green-200 bg-green-50
+                                             rounded-lg text-sm text-gray-800 resize-none
+                                             focus:outline-none focus:ring-2 focus:ring-green-400
+                                             placeholder:text-gray-400"
+                                />
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+
+            {/* Campo para sugerir nuevo instrumento */}
             <div className="flex gap-2">
               <input
                 type="text" value={otherInstrument}
                 onChange={(e) => setOtherInstrument(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addOtherInstrument() } }}
-                placeholder="Otro instrumento..."
+                placeholder="Proponer otro instrumento…"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm
                            focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                disabled={addingInstrument}
               />
               <button
                 type="button" onClick={addOtherInstrument}
+                disabled={addingInstrument || !otherInstrument.trim()}
                 className="px-3 py-2 text-sm border border-gray-300 rounded-md
-                           hover:bg-gray-50 text-gray-700 transition-colors"
+                           hover:bg-gray-50 text-gray-700 transition-colors
+                           disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                + Otro
+                {addingInstrument ? '…' : '+ Proponer'}
               </button>
             </div>
-            {instruments.filter((i) => !(INSTRUMENTS_CATALOG as readonly string[]).includes(i)).length > 0 && (
+            <p className="text-xs text-gray-400 mt-1">
+              Los instrumentos que no estén en la lista quedarán pendientes de aprobación.
+            </p>
+
+            {/* Instrumentos seleccionados que no están en el catálogo (legacy / datos viejos) */}
+            {instruments.filter((i) => !instrumentCatalog.some((c) => c.label === i)).length > 0 && (
               <div className="flex flex-wrap gap-2 mt-2">
                 {instruments
-                  .filter((i) => !(INSTRUMENTS_CATALOG as readonly string[]).includes(i))
+                  .filter((i) => !instrumentCatalog.some((c) => c.label === i))
                   .map((inst) => (
                     <span
                       key={inst}
                       className="inline-flex items-center gap-1 px-3 py-1.5
-                                 bg-green-50 border border-green-200 rounded-full text-sm text-green-800"
+                                 bg-blue-50 border border-blue-200 rounded-full text-sm text-blue-800"
                     >
                       {inst}
                       <button type="button" onClick={() => toggleInstrument(inst)}
-                        className="ml-1 text-green-400 hover:text-green-600">×</button>
+                        className="ml-1 text-blue-400 hover:text-blue-600">×</button>
                     </span>
                   ))}
               </div>
             )}
           </Section>
+
+          {/* ── Herramientas de valoración diagnóstica ── */}
+          {difficulties.length > 0 && (
+            <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleSection('herramientas')}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    Herramientas de valoración diagnóstica
+                  </span>
+                  {Object.values(toolProgress).some((v) => v > 0) && (
+                    <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5">
+                      {Object.values(toolProgress).reduce((a, b) => a + b, 0)} evaluados
+                    </span>
+                  )}
+                </div>
+                <span className="text-gray-400 text-sm">
+                  {openSections.has('herramientas') ? '▲' : '▼'}
+                </span>
+              </button>
+
+              {openSections.has('herramientas') && (
+                <div className="px-4 pb-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mt-3 mb-3">
+                    Aplica los instrumentos de valoración por dificultad. Los resultados
+                    alimentarán automáticamente la sección de Desempeño curricular.
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {difficulties.map((diff) => {
+                      const count = toolProgress[diff.difficulty] ?? 0
+                      return (
+                        <a
+                          key={diff.difficulty}
+                          href={`/estudiantes/${studentId}/herramientas/${diff.difficulty.toLowerCase()}`}
+                          className="flex items-center justify-between px-3 py-2.5 rounded-lg border
+                                     border-gray-200 hover:border-blue-300 hover:bg-blue-50
+                                     transition-colors group"
+                        >
+                          <div>
+                            <p className="text-sm font-medium text-gray-800 group-hover:text-blue-700">
+                              {diff.difficultyLabel}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {count > 0 ? `${count} objetivos evaluados` : 'Sin evaluar'}
+                            </p>
+                          </div>
+                          <span className="text-gray-300 group-hover:text-blue-400 text-lg">→</span>
+                        </a>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* ── 8. Análisis integral ── */}
           <Section

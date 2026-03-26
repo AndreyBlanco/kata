@@ -20,8 +20,10 @@ export default function PlanDeApoyoPage() {
   const [studentName, setStudentName] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [exporting, setExporting] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [planExists, setPlanExists] = useState(false)
 
   // Plan fields
   const [elaborationDate, setElaborationDate] = useState('')
@@ -36,6 +38,14 @@ export default function PlanDeApoyoPage() {
   // UI state
   const [strengthsSource, setStrengthsSource] = useState<'plan' | 'assessment' | null>(null)
   const [hasAssessment, setHasAssessment] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [generateError, setGenerateError] = useState('')
+  const [draftMeta, setDraftMeta] = useState<{
+    difficultiesFound: number
+    failedObjectivesCount: number
+    barrierCodesUsed: number
+    supportCodesUsed: number
+  } | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -59,6 +69,7 @@ export default function PlanDeApoyoPage() {
         if (planRes.ok) {
           const planData = await planRes.json()
           if (planData && planData.id) {
+            setPlanExists(true)
             setElaborationDate(planData.elaborationDate?.split('T')[0] || '')
             setActiveDifficulties(planData.activeDifficulties || [])
 
@@ -118,6 +129,64 @@ export default function PlanDeApoyoPage() {
 
   const showExecutiveSubs = priorityProcesses.includes('Funciones ejecutivas')
 
+  const handleGenerate = async () => {
+    setGenerateError('')
+    setGenerating(true)
+    try {
+      const res = await fetch(`/api/support-plans/${studentId}/generate`, { method: 'POST' })
+      if (!res.ok) {
+        const data = await res.json()
+        setGenerateError(data.error || 'Error al generar el borrador')
+        return
+      }
+      const draft = await res.json()
+
+      // Pre-marcar automáticamente todos los campos
+      setActiveDifficulties(draft.activeDifficulties ?? [])
+
+      const mainProcs = (draft.priorityProcesses ?? []).filter((p: string) =>
+        (PROCESSES_CATALOG as readonly string[]).includes(p)
+      )
+      setPriorityProcesses(mainProcs)
+      setExecutiveSubprocesses(draft.executiveSubprocesses ?? [])
+
+      setStrengths(draft.strengths ?? '')
+      setMediationStrategies(draft.mediationStrategies ?? '')
+      setHomeStrategies(draft.homeStrategies ?? '')
+      setSpecificStrategies(draft.specificStrategies ?? '')
+
+      setStrengthsSource('assessment')
+      setDraftMeta(draft._meta ?? null)
+    } catch {
+      setGenerateError('Error de conexión al generar el borrador')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const res = await fetch(`/api/support-plans/${studentId}/export`)
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.error || 'Error al exportar')
+        return
+      }
+      const blob = await res.blob()
+      const url  = URL.createObjectURL(blob)
+      const a    = document.createElement('a')
+      a.href     = url
+      a.download = `plan_apoyo_${studentName.replace(/\s+/g, '_')}.docx`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Error de conexión al exportar')
+    } finally {
+      setExporting(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -147,7 +216,8 @@ export default function PlanDeApoyoPage() {
       }
 
       setSaved(true)
-      setStrengthsSource('plan') // Once saved, strengths belong to plan
+      setPlanExists(true)
+      setStrengthsSource('plan')
       setTimeout(() => setSaved(false), 3000)
     } catch {
       setError('Error de conexión')
@@ -182,23 +252,69 @@ export default function PlanDeApoyoPage() {
         </div>
       </div>
 
-      {/* Assessment hint */}
-      {!hasAssessment && (
-        <div className="max-w-2xl mx-auto px-4 pt-4">
+      {/* Assessment hint / generate button */}
+      <div className="max-w-2xl mx-auto px-4 pt-4 space-y-3">
+        {!hasAssessment ? (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <p className="text-sm text-amber-800">
-              💡 <strong>Sugerencia:</strong> Completar primero la{' '}
+              <strong>Sugerencia:</strong> Completar primero la{' '}
               <button
                 onClick={() => router.push(`/estudiantes/${studentId}/valoracion`)}
                 className="text-amber-900 underline hover:no-underline font-medium"
               >
                 Valoración Integral
               </button>{' '}
-              para que las fortalezas se precarguen automáticamente.
+              para generar el borrador automáticamente.
             </p>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-blue-900">
+                  Generar borrador desde Valoración Integral
+                </p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  Pre-marca dificultades y procesos, y sugiere estrategias basadas en los
+                  resultados de las herramientas diagnósticas, fortalezas y barreras identificadas.
+                </p>
+                {draftMeta && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Última generación: {draftMeta.difficultiesFound} dificultad(es) ·{' '}
+                    {draftMeta.failedObjectivesCount} objetivo(s) por desarrollar ·{' '}
+                    {draftMeta.barrierCodesUsed} barrera(s) · {draftMeta.supportCodesUsed} apoyo(s)
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleGenerate}
+                disabled={generating}
+                className="shrink-0 px-4 py-2 bg-blue-600 text-white text-sm rounded-md
+                           font-medium hover:bg-blue-700 transition-colors
+                           disabled:bg-blue-300 disabled:cursor-not-allowed"
+              >
+                {generating ? 'Generando...' : 'Generar borrador'}
+              </button>
+            </div>
+            {generateError && (
+              <p className="text-xs text-red-600 mt-2">{generateError}</p>
+            )}
+          </div>
+        )}
+
+        {/* Banner post-generación */}
+        {draftMeta && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-start gap-2">
+            <span className="text-green-600 text-sm font-bold shrink-0">✓</span>
+            <p className="text-sm text-green-800">
+              Borrador generado. Revisa y edita libremente cada sección antes de guardar.
+              Los campos marcados con <span className="font-semibold">VI</span> fueron
+              pre-llenados desde la Valoración Integral.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Form */}
       <div className="max-w-2xl mx-auto p-4">
@@ -222,9 +338,16 @@ export default function PlanDeApoyoPage() {
 
           {/* ── Procesos Implicados ── */}
           <div className="bg-white rounded-lg shadow-sm border p-4">
-            <label className="block text-sm font-semibold text-gray-900 mb-1">
-              Procesos Implicados en el Aprendizaje
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-semibold text-gray-900">
+                Procesos Implicados en el Aprendizaje
+              </label>
+              {draftMeta && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mb-3">
               Selecciona los procesos que aplican al estudiante
             </p>
@@ -283,9 +406,16 @@ export default function PlanDeApoyoPage() {
 
           {/* ── Dificultades Específicas ── */}
           <div className="bg-white rounded-lg shadow-sm border p-4">
-            <label className="block text-sm font-semibold text-gray-900 mb-1">
-              Dificultades Específicas del Aprendizaje
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-sm font-semibold text-gray-900">
+                Dificultades Específicas del Aprendizaje
+              </label>
+              {draftMeta && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mb-3">
               Selecciona las que aplican al estudiante
             </p>
@@ -340,9 +470,9 @@ export default function PlanDeApoyoPage() {
               <label htmlFor="strengths" className="block text-sm font-semibold text-gray-900">
                 Fortalezas
               </label>
-              {strengthsSource === 'assessment' && (
-                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                  Precargado desde VI
+              {(strengthsSource === 'assessment' || draftMeta) && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
                 </span>
               )}
             </div>
@@ -367,9 +497,16 @@ export default function PlanDeApoyoPage() {
 
           {/* ── Estrategias para la Mediación ── */}
           <div className="bg-white rounded-lg shadow-sm border p-4">
-            <label htmlFor="mediation" className="block text-sm font-semibold text-gray-900 mb-1">
-              Estrategias para la Mediación
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="mediation" className="block text-sm font-semibold text-gray-900">
+                Estrategias para la Mediación
+              </label>
+              {draftMeta && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mb-2">
               Actividades y estrategias para el trabajo en aula: inicio de clase,
               pausas activas, por dificultad, etc.
@@ -388,9 +525,16 @@ export default function PlanDeApoyoPage() {
 
           {/* ── Estrategias de Apoyo para la Casa ── */}
           <div className="bg-white rounded-lg shadow-sm border p-4">
-            <label htmlFor="home" className="block text-sm font-semibold text-gray-900 mb-1">
-              Estrategias de Apoyo para la Casa
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="home" className="block text-sm font-semibold text-gray-900">
+                Estrategias de Apoyo para la Casa
+              </label>
+              {draftMeta && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mb-2">
               Actividades y recomendaciones para que la familia apoye en el hogar.
             </p>
@@ -408,9 +552,16 @@ export default function PlanDeApoyoPage() {
 
           {/* ── Estrategias Específicas ── */}
           <div className="bg-white rounded-lg shadow-sm border p-4">
-            <label htmlFor="specific" className="block text-sm font-semibold text-gray-900 mb-1">
-              Estrategias Específicas
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label htmlFor="specific" className="block text-sm font-semibold text-gray-900">
+                Estrategias Específicas
+              </label>
+              {draftMeta && (
+                <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
+                  VI
+                </span>
+              )}
+            </div>
             <p className="text-xs text-gray-500 mb-2">
               Actividades específicas del docente de apoyo: cuadernos de refuerzo,
               materiales especializados, ejercicios dirigidos.
@@ -435,19 +586,34 @@ export default function PlanDeApoyoPage() {
             </p>
           )}
 
-          {/* Save button */}
-          <button
-            type="submit"
-            disabled={
-              saving ||
-              (activeDifficulties.length === 0 && priorityProcesses.length === 0)
-            }
-            className="w-full py-3 px-4 bg-blue-600 text-white rounded-md
-                       font-medium hover:bg-blue-700 transition-colors
-                       disabled:bg-blue-300 disabled:cursor-not-allowed"
-          >
-            {saving ? 'Guardando...' : 'Guardar Plan de Apoyo'}
-          </button>
+          {/* Action buttons */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              type="submit"
+              disabled={
+                saving ||
+                (activeDifficulties.length === 0 && priorityProcesses.length === 0)
+              }
+              className="flex-1 py-3 px-4 bg-blue-600 text-white rounded-md
+                         font-medium hover:bg-blue-700 transition-colors
+                         disabled:bg-blue-300 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Guardando...' : 'Guardar Plan de Apoyo'}
+            </button>
+
+            {planExists && (
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={exporting}
+                className="flex-1 py-3 px-4 bg-emerald-600 text-white rounded-md
+                           font-medium hover:bg-emerald-700 transition-colors
+                           disabled:bg-emerald-300 disabled:cursor-not-allowed"
+              >
+                {exporting ? 'Exportando...' : 'Exportar Plan (.docx)'}
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>

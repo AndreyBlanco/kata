@@ -53,13 +53,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(items)
   }
 
-  const groupMap = new Map<string, { category: string; items: typeof items }>()
+  // Agrupar por categoría → Record<string, items[]>
+  const byCategory: Record<string, typeof items> = {}
   for (const item of items) {
-    if (!groupMap.has(item.category)) {
-      groupMap.set(item.category, { category: item.category, items: [] })
-    }
-    groupMap.get(item.category)!.items.push(item)
+    if (!byCategory[item.category]) byCategory[item.category] = []
+    byCategory[item.category].push(item)
   }
 
-  return NextResponse.json(Array.from(groupMap.values()))
+  return NextResponse.json(byCategory)
 }
