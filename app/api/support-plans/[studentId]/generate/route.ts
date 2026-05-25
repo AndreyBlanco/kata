@@ -1,8 +1,11 @@
 // app/api/support-plans/[studentId]/generate/route.ts
 //
 // POST — Genera un borrador del Plan de Apoyo a partir de:
-//   • La Valoración Integral del estudiante (fortalezas, texto libre)
-//   • Los StudentAssessmentResult con resultado "no" o "withSupport"
+//   • La Valoración Integral del estudiante (fortalezas, barreras, apoyos)
+//   • Las últimas aplicaciones de pruebas diagnósticas (StudentDiagnosticTest)
+//     y sus resultados con preferencia activa.
+//   • Las recomendaciones marcadas en las pruebas, clasificadas por
+//     destino (aula / hogar / específica) — heurística D5.
 //
 // El borrador se devuelve sin guardar; el docente lo edita y lo confirma
 // mediante PUT /api/support-plans/[studentId].

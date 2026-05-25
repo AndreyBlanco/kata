@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { Packer } from 'docx'
 import { prisma } from '@/lib/prisma'
+import { normalizeAssessmentInstruments } from '@/lib/instruments'
 import {
   generateValoracionDocument,
   type CurricularSubjectRow,
@@ -84,6 +85,11 @@ export async function GET(req: NextRequest, { params }: Params) {
   }))
 
   // ── 4. Ensamblar datos de exportación ──
+  const normalizedInstruments = await normalizeAssessmentInstruments(
+    assessment?.instruments ?? [],
+    assessment?.instrumentNotes ?? {},
+  )
+
   const exportData = {
     // Estudiante
     studentName:          student.name,
@@ -136,8 +142,8 @@ export async function GET(req: NextRequest, { params }: Params) {
     curricularSubjects,
 
     // Sección 7
-    instruments:     assessment?.instruments     ?? [],
-    instrumentNotes: (assessment?.instrumentNotes ?? {}) as Record<string, string>,
+    instruments:     normalizedInstruments.instruments,
+    instrumentNotes: normalizedInstruments.instrumentNotes,
 
     // Sección 8
     integralAnalysis: assessment?.integralAnalysis ?? '',

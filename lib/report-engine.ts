@@ -100,7 +100,8 @@ const MONTH_NAMES = [
 export async function generateReport(
   teacherId: string,
   studentId: string,
-  months: number[]
+  months: number[],
+  options?: { schoolPeriodLabel?: string },
 ): Promise<ReportData> {
   // Cargar datos
   const student = await prisma.student.findFirst({
@@ -139,9 +140,10 @@ export async function generateReport(
   const plan = student.supportPlan
 
   // ── 1. PARTE ADMINISTRATIVA ──
-  const periodLabel = months.length === 1
-    ? MONTH_NAMES[months[0]]
-    : `${MONTH_NAMES[months[0]]} a ${MONTH_NAMES[months[months.length - 1]]}`
+  const monthsPeriodLabel =
+    months.length === 1
+      ? MONTH_NAMES[months[0]]
+      : `${MONTH_NAMES[months[0]]} a ${MONTH_NAMES[months[months.length - 1]]}`
 
   const administrative: AdministrativeSection = {
     studentName: student.name,
@@ -151,7 +153,7 @@ export async function generateReport(
     centerName: teacher.centerName,
     circuit: teacher.circuit,
     specialty: teacher.specialty,
-    reportPeriod: periodLabel,
+    reportPeriod: options?.schoolPeriodLabel ?? monthsPeriodLabel,
     generatedDate: new Date().toLocaleDateString('es-CR', {
       year: 'numeric',
       month: 'long',

@@ -2,8 +2,6 @@
 
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { ASSESSMENT_OBJECTIVES } from './assessment-objectives-data'
-import { ASSESSMENT_OBJECTIVES_NEW } from './assessment-objectives-new'
 import { BARRIER_ITEMS, CONTEXT_DIMENSIONS, SUPPORT_ITEMS, FOLLOWUP_SCHEDULES } from './catalogs-data'
 
 const prisma = new PrismaClient()
@@ -420,49 +418,11 @@ async function main() {
     })
   }
 
-  // — AssessmentObjective —
-  // Seed en lotes para no saturar la conexión
-  const ALL_OBJECTIVES = [...ASSESSMENT_OBJECTIVES, ...ASSESSMENT_OBJECTIVES_NEW]
-  const BATCH_SIZE = 50
-  let seededObjectives = 0
-  for (let i = 0; i < ALL_OBJECTIVES.length; i += BATCH_SIZE) {
-    const batch = ALL_OBJECTIVES.slice(i, i + BATCH_SIZE)
-    for (const row of batch) {
-      await prisma.assessmentObjective.upsert({
-        where: { code: row.code },
-        update: {
-          difficulty:      row.difficulty,
-          difficultyLabel: row.difficultyLabel,
-          areaCode:        row.areaCode,
-          areaLabel:       row.areaLabel,
-          level:           row.level,
-          levelLabel:      row.levelLabel,
-          levelType:       row.levelType,
-          levelSort:       row.levelSort,
-          itemOrder:       row.itemOrder,
-          description:     row.description,
-          active:          true,
-        },
-        create: {
-          code:            row.code,
-          difficulty:      row.difficulty,
-          difficultyLabel: row.difficultyLabel,
-          areaCode:        row.areaCode,
-          areaLabel:       row.areaLabel,
-          level:           row.level,
-          levelLabel:      row.levelLabel,
-          levelType:       row.levelType,
-          levelSort:       row.levelSort,
-          itemOrder:       row.itemOrder,
-          description:     row.description,
-          active:          true,
-        },
-      })
-      seededObjectives++
-    }
-    process.stdout.write(`\r  AssessmentObjective: ${seededObjectives}/${ALL_OBJECTIVES.length}`)
-  }
-  process.stdout.write('\n')
+  // — Pruebas diagnósticas (DiagnosticTest) —
+  // Las pruebas estructuradas reemplazan a AssessmentObjective.
+  // Se siembran por separado desde miscelaneos/Pruebas diagnósticas-MD vía
+  // `npm run seed:diagnostic-tests` (prisma/seed-diagnostic-tests.ts).
+  console.log('  ℹ️  Pruebas diagnósticas: usar `npm run seed:diagnostic-tests` por separado.')
 
   // =============================================
   // BARRIER ITEMS
@@ -544,7 +504,7 @@ async function main() {
   console.log('✅ StrengthItem:', STRENGTH_ITEMS.length, 'registros')
   console.log('✅ LearningProcessItem:', LEARNING_PROCESS_ITEMS.length, 'registros')
   console.log('✅ SpecificLearningDifficulty:', SPECIFIC_LEARNING_DIFFICULTIES.length, 'registros')
-  console.log('✅ AssessmentObjective:', seededObjectives, `registros (${ASSESSMENT_OBJECTIVES.length} originales + ${ASSESSMENT_OBJECTIVES_NEW.length} nuevos)`)
+  console.log('ℹ️  DiagnosticTest: usar `npm run seed:diagnostic-tests`')
   console.log('✅ BarrierItem:', BARRIER_ITEMS.length, 'registros')
   console.log('✅ ContextDimension:', CONTEXT_DIMENSIONS.length, 'registros')
   console.log('✅ SupportItem:', SUPPORT_ITEMS.length, 'registros')

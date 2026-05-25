@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { prisma } from '@/lib/prisma'
+import { normalizeAssessmentInstruments } from '@/lib/instruments'
 
 // GET — Obtener valoración integral de un estudiante
 export async function GET(
@@ -28,7 +29,20 @@ export async function GET(
     where: { studentId },
   })
 
-  return NextResponse.json(assessment)
+  if (!assessment) {
+    return NextResponse.json(assessment)
+  }
+
+  const normalized = await normalizeAssessmentInstruments(
+    assessment.instruments,
+    assessment.instrumentNotes,
+  )
+
+  return NextResponse.json({
+    ...assessment,
+    instruments: normalized.instruments,
+    instrumentNotes: normalized.instrumentNotes,
+  })
 }
 
 // PUT — Crear o actualizar valoración integral
@@ -95,6 +109,13 @@ export async function PUT(
     followUp:               followUp               ?? '',
     followupCodes:          followupCodes          ?? [],
   }
+
+  const normalized = await normalizeAssessmentInstruments(
+    data.instruments,
+    data.instrumentNotes,
+  )
+  data.instruments = normalized.instruments
+  data.instrumentNotes = normalized.instrumentNotes
 
   const assessment = await prisma.integralAssessment.upsert({
     where: { studentId },

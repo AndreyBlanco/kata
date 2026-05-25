@@ -5,6 +5,9 @@
 import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { KataLogo } from '@/components/ui/kata-logo'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,15 +39,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-lg shadow-md p-8">
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">Katà</h1>
-            <p className="text-sm text-gray-500 mt-2">
-              Informes finales en minutos
-            </p>
-          </div>
+    <div className="flex min-h-screen items-center justify-center bg-kata-surface px-4">
+      <div className="w-full max-w-sm space-y-4">
+        <div className="flex justify-center">
+          <KataLogo width={280} height={100} priority />
+        </div>
+        <Card className="p-8 shadow-md">
+          <p className="mb-6 text-center text-sm text-gray-500">
+            Informes finales en minutos
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -61,7 +64,7 @@ export default function LoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-blue-500
+                           focus:outline-none focus:ring-2 focus:ring-kata-primary
                            focus:border-transparent text-gray-900"
                 placeholder="docente@kata.cr"
               />
@@ -81,7 +84,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md
-                           focus:outline-none focus:ring-2 focus:ring-blue-500
+                           focus:outline-none focus:ring-2 focus:ring-kata-primary
                            focus:border-transparent text-gray-900"
                 placeholder="••••••••"
               />
@@ -91,21 +94,15 @@ export default function LoginPage() {
               <p className="text-sm text-red-600 text-center">{error}</p>
             )}
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2 px-4 bg-blue-600 text-white rounded-md
-                         font-medium hover:bg-blue-700 transition-colors
-                         disabled:bg-blue-300 disabled:cursor-not-allowed"
-            >
+            <Button type="submit" fullWidth disabled={loading}>
               {loading ? 'Ingresando...' : 'Ingresar'}
-            </button>
+            </Button>
           </form>
 
-          <p className="text-xs text-gray-400 text-center mt-6">
+          <p className="mt-6 text-center text-xs text-gray-400">
             MVP Piloto v0.9
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   )

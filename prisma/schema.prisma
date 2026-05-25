@@ -12,6 +12,15 @@ datasource db {
 // =============================================
 // TEACHER
 // =============================================
+// Modalidad de trabajo del docente PA (Anexo 1 — distribución de lecciones).
+//   FIJO        = 40 lecciones / semana
+//   ITINERANTE  = 44 lecciones / semana
+// El piloto arranca con FIJO; ITINERANTE queda preparado para versiones siguientes.
+enum WorkModality {
+  FIJO
+  ITINERANTE
+}
+
 model Teacher {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -20,10 +29,17 @@ model Teacher {
   centerName    String
   circuit       String
   specialty     String
+  /** Periodo lectivo activo del docente, ej. "2026-I" — ver lib/school-periods.ts */
+  activeSchoolPeriod String?
+  /** Modalidad PA — editable por el docente desde /perfil. */
+  workModality  WorkModality @default(FIJO)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  students      Student[]
+  students               Student[]
+  approvedSchedules      ApprovedSchedule[]
+  actionPlans            ActionPlan[]
+  institutionalDocuments InstitutionalDocument[]
 }
 
 // =============================================
@@ -226,9 +242,107 @@ model Student {
   assessment           IntegralAssessment?
   supportPlan          StudentSupportPlan?
   sessions             GeneratedSession[]
-  assessmentResults    StudentAssessmentResult[]
+  diagnosticTests      StudentDiagnosticTest[]
+  objectivePreferences StudentObjectivePreference[]
+  interviews           InterviewRecord[]
+  observations         ObservationRecord[]
+  expedienteConsultations ExpedienteConsultation[]
 
   @@index([teacherId])
+}
+
+// =============================================
+// CAPA 2 — Entrada diagnóstica (Fase 1)
+// =============================================
+enum InterviewType {
+  FAMILIA
+  ESTUDIANTE
+  DOCENTE_GRADO
+  DOCENTE_GUIA
+  OTRO_PROFESIONAL
+}
+
+enum InterviewFormat {
+  ESTRUCTURADA
+  SEMIESTRUCTURADA
+  LIBRE
+}
+
+enum InterviewModality {
+  PRESENCIAL
+  VIRTUAL
+}
+
+enum ObservationContext {
+  AULA
+  SERVICIO_APOYO
+  OTRO
+}
+
+model InterviewRecord {
+  id                  String            @id @default(cuid())
+  studentId           String
+  teacherId           String
+  schoolPeriod        String
+  interviewType       InterviewType
+  format              InterviewFormat   @default(SEMIESTRUCTURADA)
+  modality            InterviewModality @default(PRESENCIAL)
+  conductedAt         DateTime
+  participantName     String?
+  participantRoleCode String?
+  content             Json              @default("{}")
+  consentRecorded     Boolean           @default(false)
+  consentRecordedAt   DateTime?
+  linkedInstrumentCode String?
+  appliedToAssessment Boolean           @default(false)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  student             Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, schoolPeriod])
+  @@index([studentId, interviewType])
+}
+
+model ObservationRecord {
+  id                   String             @id @default(cuid())
+  studentId            String
+  teacherId            String
+  schoolPeriod         String
+  context              ObservationContext
+  subjectOrSpace       String?
+  observedAt           DateTime
+  dimensionNotes       Json               @default("{}")
+  generalNotes         String             @default("")
+  linkedInstrumentCode String?
+  appliedToAssessment  Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  student              Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId, schoolPeriod])
+  @@index([studentId, context])
+}
+
+/** Acción MEP 1.6 — consulta al expediente único institucional (documentada, no sustituye el único) */
+model ExpedienteConsultation {
+  id                  String   @id @default(cuid())
+  studentId           String
+  teacherId           String
+  schoolPeriod        String
+  consultedAt         DateTime
+  expedienteReviewed  Boolean  @default(false)
+  documentsReviewed   String   @default("")
+  familyProvidedDocs  String   @default("")
+  notes               String   @default("")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  student             Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, schoolPeriod])
+  @@index([studentId])
 }
 
 // =============================================
@@ -245,6 +359,8 @@ model IntegralAssessment {
   // Estado del expediente
   status          String    @default("active")  // "active" | "completed"
   requiresSupport Boolean?                       // null=pendiente | true=sí | false=no
+  /** nuevo_ingreso | continuidad — Fase 2 */
+  serviceIntakeType String?
 
   // Sección 2: Participantes
   participants          String[]
@@ -443,65 +559,449 @@ model AssessmentInstrument {
 }
 
 // =============================================
-// ASSESSMENT OBJECTIVE (biblioteca — instrumento de valoración por dificultad)
-// Extraído de miscelaneos/objetivos.docx (664 objetivos, 5 dificultades)
-// difficulty: DISGRAFIA | DISORTOGRAFIA | DISPRAXIA | DISCALCULIA | DISLEXIA
-//             (+ TDA | APZ_LENTO | TANV — pendientes de contenido)
-// level: B (básico) | 1 | 2 | 3 | S (seguimiento emocional, escala 1-5)
-// levelType: checkbox (SÍ/NO/SÍ con apoyo) | scale (1-5)
+// DIAGNOSTIC TESTS (Fase 3a)
+// Pruebas estructuradas por grado: actividades + items + recomendaciones.
+// Reemplaza al modelo AssessmentObjective+StudentAssessmentResult.
+// Fuente: miscelaneos/Pruebas diagnósticas-MD/{N. Dificultad}/{N.G} ...md
 // =============================================
-model AssessmentObjective {
-  id             String   @id @default(cuid())
-  code           String   @unique           // "DISGRAFIA.A.B.1"
-  difficulty     String                     // "DISGRAFIA"
-  difficultyLabel String                    // "Disgrafía"
-  areaCode       String                     // "A"
-  areaLabel      String                     // "CALIDAD DEL TRAZO Y FORMACIÓN DE LETRAS"
-  level          String                     // "B" | "1" | "2" | "3" | "S"
-  levelLabel     String                     // "Básico" | "Nivel 1" | ...
-  levelType      String                     // "checkbox" | "scale"
-  levelSort      Int      @default(0)       // 0=B, 1, 2, 3, 99=S
-  itemOrder      Int                        // posición dentro de área+nivel
-  description    String                     // texto del objetivo
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model DiagnosticTest {
+  id              String   @id @default(cuid())
+  code            String   @unique          // "DISLEXIA_1", "DISORTOGRAFIA_2"...
+  difficulty      String                    // "DISLEXIA" | "DISORTOGRAFIA" | "DISGRAFIA" | "DISPRAXIA" | "DISCALCULIA" | "APZ_LENTO" | "TDAH" | "TANV"
+  difficultyLabel String                    // "Dislexia"
+  grade           String                    // "1" | "2" | "3" | "4" | "5" | "6"
+  gradeLabel      String                    // "Primer grado"
+  title           String                    // título completo del .md
+  description     String?                   // aviso normativo/introductorio
+  areasEvaluated  Json     @default("[]")   // lista de áreas evaluadas (informativo, viene del .md)
+  sourceFile      String?                   // ruta del .md fuente
+  active          Boolean  @default(true)
+  sortOrder       Int      @default(0)      // 1..8 según carpetas
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  results        StudentAssessmentResult[]
+  activities      DiagnosticTestActivity[]
+  applications    StudentDiagnosticTest[]
 
+  @@unique([difficulty, grade])
   @@index([difficulty])
-  @@index([difficulty, areaCode])
-  @@index([level])
+  @@index([grade])
   @@index([active])
 }
 
-// =============================================
-// STUDENT ASSESSMENT RESULT
-// Resultado de un objetivo específico para un estudiante
-// Última evaluación: se sobreescribe en cada sesión de valoración
-// =============================================
-enum AssessmentResultValue {
-  yes
-  no
-  withSupport
+model DiagnosticTestActivity {
+  id                  String   @id @default(cuid())
+  testId              String
+  letter              String                  // "A", "B", "C"...
+  title               String                  // "Conciencia Fonológica"
+  purpose             String?
+  modality            String?
+  estimatedTime       String?
+  materials           String?
+  teacherInstructions String?                 // markdown
+  applicationMaterial String?                 // markdown (tabla / palabras estímulo)
+  crossDifficulties   String?                 // markdown
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  test            DiagnosticTest                  @relation(fields: [testId], references: [id], onDelete: Cascade)
+  items           DiagnosticTestItem[]
+  recommendations DiagnosticTestRecommendation[]
+
+  @@unique([testId, letter])
+  @@index([testId])
 }
 
-model StudentAssessmentResult {
-  id          String                @id @default(cuid())
-  studentId   String
-  objectiveId String
-  result      AssessmentResultValue
-  scaleValue  Int?                  // solo para levelType=scale (1-5)
-  notes       String?
-  assessedAt  DateTime              @default(now())
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
+model DiagnosticTestItem {
+  id          String   @id @default(cuid())
+  activityId  String
+  itemNumber  Int                     // 1, 2, 3...
+  description String                  // "Segmenta correctamente palabras en sílabas"
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  student     Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  objective   AssessmentObjective  @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+  activity    DiagnosticTestActivity         @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  results     StudentDiagnosticItemResult[]
+  preferences StudentObjectivePreference[]
 
-  @@unique([studentId, objectiveId])
+  @@unique([activityId, itemNumber])
+  @@index([activityId])
+}
+
+model DiagnosticTestRecommendation {
+  id         String   @id @default(cuid())
+  activityId String
+  text       String
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  activity   DiagnosticTestActivity              @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  selections StudentRecommendationSelection[]
+
+  @@index([activityId])
+}
+
+// =============================================
+// APLICACIÓN DE UNA PRUEBA (estudiante × prueba × intento)
+// =============================================
+enum DiagnosticItemResult {
+  LOGRADO            // logrado
+  EN_PROCESO         // en proceso
+  PRESENTA_DIFICULTAD // presenta dificultad
+}
+
+model StudentDiagnosticTest {
+  id            String    @id @default(cuid())
+  studentId     String
+  testId        String
+  schoolPeriod  String?
+  attemptNumber Int       @default(1)         // R2: múltiples aplicaciones permitidas
+  startedAt     DateTime  @default(now())
+  lastSavedAt   DateTime  @default(now())     // promoción explícita del borrador
+  completedAt   DateTime?                     // R3: el docente decide marcarla completa
+  draftPayload  Json?                         // B (autosave): cambios no confirmados
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  student                  Student                                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  test                     DiagnosticTest                         @relation(fields: [testId], references: [id], onDelete: Restrict)
+  itemResults              StudentDiagnosticItemResult[]
+  activityObservations     StudentDiagnosticActivityObservation[]
+  recommendationSelections StudentRecommendationSelection[]
+
+  @@unique([studentId, testId, attemptNumber])
   @@index([studentId])
-  @@index([objectiveId])
-  @@index([studentId, result])
+  @@index([studentId, completedAt])
+  @@index([testId])
+}
+
+model StudentDiagnosticItemResult {
+  id            String                @id @default(cuid())
+  studentTestId String
+  itemId        String
+  result        DiagnosticItemResult
+  notes         String?
+  assessedAt    DateTime              @default(now())
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  studentTest StudentDiagnosticTest @relation(fields: [studentTestId], references: [id], onDelete: Cascade)
+  item        DiagnosticTestItem    @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([studentTestId, itemId])
+  @@index([studentTestId])
+  @@index([itemId])
+  @@index([studentTestId, result])
+}
+
+model StudentDiagnosticActivityObservation {
+  id            String   @id @default(cuid())
+  studentTestId String
+  activityId    String
+  text          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  studentTest StudentDiagnosticTest @relation(fields: [studentTestId], references: [id], onDelete: Cascade)
+
+  @@unique([studentTestId, activityId])
+  @@index([studentTestId])
+}
+
+model StudentRecommendationSelection {
+  id               String   @id @default(cuid())
+  studentTestId    String
+  recommendationId String
+  selected         Boolean  @default(true)
+  recommendationCategory String?  // 'aula' | 'hogar' | 'especifica' — heurística D5; null = sin asignar
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  studentTest    StudentDiagnosticTest        @relation(fields: [studentTestId], references: [id], onDelete: Cascade)
+  recommendation DiagnosticTestRecommendation @relation(fields: [recommendationId], references: [id], onDelete: Cascade)
+
+  @@unique([studentTestId, recommendationId])
+  @@index([studentTestId])
+}
+
+// =============================================
+// PREFERENCIA DE OBJETIVOS DERIVADOS (Fase 3a — E′-2)
+// 1 fila por (estudiante, item de prueba) cuando el docente toca activación.
+// Si no existe la fila, el sistema asume valor por defecto:
+//   isActive = true  cuando el item está en EN_PROCESO o PRESENTA_DIFICULTAD,
+//   isActive = false cuando el item está en LOGRADO.
+// =============================================
+model StudentObjectivePreference {
+  id        String   @id @default(cuid())
+  studentId String
+  itemId    String
+  isActive  Boolean  @default(true)
+  priority  Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  item    DiagnosticTestItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, itemId])
+  @@index([studentId])
+  @@index([studentId, isActive])
+}
+
+// =============================================
+// SESIÓN E — Fases 5+6: Horario base + Planificación de acciones
+//
+// Anexo 1 Líneas de Acción 2023, cuadros 1 (fijo 40) y 2 (itinerante 44).
+// Piloto: jornada única, plantilla derivada de miscelaneos/Horario.
+// Deuda técnica documentada en plan-trabajo-maestro.md (otras jornadas,
+// doble jornada, itinerancia multi-centro, semanas A/B completas).
+// =============================================
+
+/** Bloques de tiempo del día tipo del piloto (jornada única). */
+enum ScheduleBlockType {
+  LESSON
+  RECESS
+  LUNCH
+}
+
+/** Variante de la tarde — referencia Horario de miscelaneos. */
+enum AfternoonVariant {
+  A
+  B
+}
+
+/** Categorías Anexo 1 — usadas tanto en cupos de horario como en líneas del plan. */
+enum ServiceLessonCategory {
+  AULA_REGULAR        // Acompañamiento en contexto de aula
+  OTROS_ESPACIOS      // Apoyo personalizado u otros espacios
+  ARTICULACION        // Articulación con otros servicios de apoyo
+  COMUNIDAD_EDUCATIVA // Acciones a la comunidad educativa
+  FAMILIAS            // Acciones a las familias
+  SERVICIO_PROPIAS    // Acciones propias del servicio
+}
+
+/** Procesos MEP — Anexo 5 «Acciones por desarrollar» (proceso 1/2/3). */
+enum MepProcess {
+  IDENTIFICACION
+  IMPLEMENTACION
+  REFLEXION
+}
+
+enum ActionPlanStatus {
+  BORRADOR
+  APROBADO
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Horario base aprobado por dirección. Uno por docente por periodo lectivo.
+// Los slots representan la grilla semanal de referencia con bloques fijos
+// (lecciones, recesos, almuerzo) en horas exactas tomadas del archivo
+// miscelaneos/Horario para el piloto.
+// ─────────────────────────────────────────────────────────────────────────────
+model ApprovedSchedule {
+  id            String   @id @default(cuid())
+  teacherId     String
+  schoolPeriod  String
+  modality      WorkModality
+  notes         String?
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher Teacher        @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  slots   ScheduleSlot[]
+
+  @@unique([teacherId, schoolPeriod])
+  @@index([teacherId])
+}
+
+/**
+ * Una celda fija de la grilla semanal de referencia.
+ *  dayOfWeek: 1=lunes … 5=viernes
+ *  blockIndex: orden visual dentro del día (mañana 1–6, tarde 7–10 para piloto)
+ *  startTime / endTime: strings 'HH:mm' (no usamos Date para evitar TZ).
+ *  category: solo relevante cuando blockType = LESSON; null en recreos/almuerzo.
+ *  afternoonVariant: 'A' por defecto (piloto sólo tiene Semana A).
+ */
+model ScheduleSlot {
+  id                 String              @id @default(cuid())
+  scheduleId         String
+  dayOfWeek          Int
+  blockIndex         Int
+  blockType          ScheduleBlockType
+  startTime          String
+  endTime            String
+  durationMinutes    Int
+  category           ServiceLessonCategory?
+  afternoonVariant   AfternoonVariant?
+  label              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  schedule         ApprovedSchedule    @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  actionPlanSlots  ActionPlanSlot[]
+
+  @@unique([scheduleId, dayOfWeek, blockIndex, afternoonVariant])
+  @@index([scheduleId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Plan de acciones mensual (Anexo 5).
+// Uno por (docente, periodo, año, mes). El docente puede crear múltiples
+// planes (uno por mes) hasta el fin del periodo activo, cada uno se aprueba
+// individualmente. Al editar un plan aprobado se genera un nuevo borrador
+// que, al aprobarse, sobrescribe el aprobado anterior (sin historial v1).
+// ─────────────────────────────────────────────────────────────────────────────
+model ActionPlan {
+  id            String   @id @default(cuid())
+  teacherId     String
+  schoolPeriod  String
+  year          Int
+  month         Int      // 1–12 (debe pertenecer a schoolPeriod.months)
+  status        ActionPlanStatus @default(BORRADOR)
+  approvedAt    DateTime?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  teacher Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  lines   ActionPlanLine[]
+
+  @@unique([teacherId, year, month])
+  @@index([teacherId, schoolPeriod])
+}
+
+/**
+ * Línea pedagógica del plan (P6a).
+ * Categoría Anexo 1 + descripción + estudiante opcional + objetivos derivados
+ * opcionales (linkedItemIds → DiagnosticTestItem.id, lista plana).
+ * lessonCount es el "presupuesto" intencional; se valida contra la suma de
+ * ActionPlanSlot.
+ */
+model ActionPlanLine {
+  id              String   @id @default(cuid())
+  planId          String
+  category        ServiceLessonCategory
+  mepProcess      MepProcess @default(IMPLEMENTACION)
+  description     String
+  observations    String   @default("")
+  lessonCount     Int      @default(0)
+  studentId       String?
+  /** IDs de DiagnosticTestItem cubiertos por esta línea (objetivos derivados). */
+  linkedItemIds   String[]
+  sortOrder       Int      @default(0)
+  /** True si la línea fue producida por la IA en /ai-generate (Sesión F-2). */
+  aiGenerated     Boolean  @default(false)
+  /** Documento institucional del que se desprendió la línea (oficial o suplente). */
+  sourceDocumentId        String?
+  /** id local de la actividad anual referenciada (ActionPlanAnnualPayload.activities[].id). */
+  linkedAnnualActivityId  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  plan           ActionPlan             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  slots          ActionPlanSlot[]
+  sourceDocument InstitutionalDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([planId])
+  @@index([studentId])
+  @@index([sourceDocumentId])
+}
+
+/**
+ * Ubicación concreta de una línea en el calendario mensual.
+ *  weekNumber: semana del mes (1..5)
+ *  dayOfWeek: 1..5 (lunes..viernes)
+ *  date: fecha exacta (para distinguir Semana 1 mar 3 vs Semana 2 mar 10)
+ *  scheduleSlotId: enlace al ScheduleSlot que da hora/duración/categoría tipo
+ */
+model ActionPlanSlot {
+  id              String   @id @default(cuid())
+  lineId          String
+  scheduleSlotId  String
+  weekNumber      Int
+  dayOfWeek       Int
+  date            DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  line          ActionPlanLine  @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  scheduleSlot  ScheduleSlot    @relation(fields: [scheduleSlotId], references: [id], onDelete: Restrict)
+
+  @@unique([scheduleSlotId, date])
+  @@index([lineId])
+  @@index([date])
+}
+
+// =============================================
+// DOCUMENTOS INSTITUCIONALES (Sesión F-1)
+// =============================================
+// Documentos del centro/servicio que el docente sube para alimentar la
+// planificación de acciones. En F-1 sólo procesamos el Anexo 2 (Plan de
+// Acción Anual). El enum queda abierto para PAT / Anexo 1 (autoevaluación)
+// en futuras versiones — están listados pero NO se usan aún en la app.
+enum InstitutionalDocumentType {
+  PLAN_ACCION_ANUAL    // Anexo 2 — único soportado en F-1
+  PAT                  // reservado, futuro
+  AUTOEVALUACION       // Anexo 1, reservado, futuro
+  OTRO                 // reservado, futuro
+}
+
+enum InstitutionalDocumentStatus {
+  UPLOADED    // archivo recibido, texto extraído, IA no corrida aún
+  PROCESSING  // IA en curso (uso futuro asíncrono)
+  PROCESSED   // IA terminó OK, payload disponible
+  ERROR       // falló extracción o IA — ver aiError
+}
+
+/**
+ * Documento institucional procesado por IA. NO conservamos el binario:
+ * sólo metadatos + texto extraído + payload estructurado.
+ *
+ * `aiPayload` es JSON con la estructura definida en
+ * lib/institutional-document-types.ts (ActionPlanAnnualPayload para el
+ * tipo PLAN_ACCION_ANUAL).
+ */
+model InstitutionalDocument {
+  id                String                       @id @default(cuid())
+  teacherId         String
+  type              InstitutionalDocumentType    @default(PLAN_ACCION_ANUAL)
+  title             String                       // nombre dado por el docente
+  schoolYear        Int                          // ej. 2026 — periodo lectivo al que aplica
+  /**
+   * Metadatos del archivo fuente. Opcionales porque los documentos suplentes
+   * generados por la IA desde expedientes (Sesión F-2) no tienen archivo.
+   */
+  originalFileName  String?
+  mimeType          String?
+  fileSizeBytes     Int?
+  /** Texto plano del PDF/DOCX. Vacío en documentos suplentes IA. */
+  extractedText     String?
+  aiPayload         Json?                        // ActionPlanAnnualPayload (cuando PROCESSED)
+  aiSummary         String?                      // resumen humano (3–5 líneas)
+  aiProvider        String?                      // 'google' | 'openai' | 'anthropic' | 'local'
+  aiModel           String?
+  aiError           String?                      // si status = ERROR
+  status            InstitutionalDocumentStatus  @default(UPLOADED)
+  /**
+   * True si el documento fue generado por Katà desde los expedientes
+   * (no fue subido por el docente). Se usa para distinguir "oficial" vs
+   * "suplente IA" en la UI y para sugerir al docente reemplazarlo cuando
+   * tenga el plan oficial del centro.
+   */
+  aiGenerated       Boolean                      @default(false)
+  notes             String?                      // anotaciones del docente
+  uploadedAt        DateTime                     @default(now())
+  processedAt       DateTime?
+  updatedAt         DateTime                     @updatedAt
+
+  teacher          Teacher          @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  actionPlanLines  ActionPlanLine[]
+
+  @@index([teacherId, type, schoolYear])
+  @@index([teacherId, status])
 }

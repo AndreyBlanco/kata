@@ -13,6 +13,9 @@
 //   { requiresSupport: true }                    → registrar decisión de apoyo
 //   { requiresSupport: false }                   → registrar decisión de no apoyo
 //   { status: "completed", requiresSupport: true } → cerrar y registrar en una llamada
+//   { bsaReceivedDate: "2026-05-01" }            → registrar recepción BSA (ISO date)
+//   { bsaReceivedDate: null }                      → limpiar registro BSA
+//   { serviceIntakeType: "nuevo_ingreso" | "continuidad" }
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
@@ -41,7 +44,7 @@ export async function PATCH(
   }
 
   const body = await req.json()
-  const { status, requiresSupport } = body
+  const { status, requiresSupport, bsaReceivedDate, serviceIntakeType } = body
 
   // Validar status si viene en el body
   if (status !== undefined && !VALID_STATUSES.includes(status)) {
@@ -63,10 +66,26 @@ export async function PATCH(
     )
   }
 
+  if (
+    serviceIntakeType !== undefined &&
+    serviceIntakeType !== null &&
+    serviceIntakeType !== 'nuevo_ingreso' &&
+    serviceIntakeType !== 'continuidad'
+  ) {
+    return NextResponse.json(
+      { error: 'serviceIntakeType inválido. Valores: nuevo_ingreso, continuidad' },
+      { status: 400 },
+    )
+  }
+
   // Construir solo los campos que vienen en el body
   const patch: Record<string, unknown> = {}
   if (status !== undefined) patch.status = status
   if (requiresSupport !== undefined) patch.requiresSupport = requiresSupport
+  if (bsaReceivedDate !== undefined) {
+    patch.bsaReceivedDate = bsaReceivedDate ? new Date(bsaReceivedDate) : null
+  }
+  if (serviceIntakeType !== undefined) patch.serviceIntakeType = serviceIntakeType
   // Al completar → registrar fecha de elaboración automáticamente
   if (status === 'completed') patch.elaborationDate = new Date()
   // Al reabrir → limpiar la fecha de elaboración
@@ -74,7 +93,7 @@ export async function PATCH(
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json(
-      { error: 'Se requiere al menos un campo: status o requiresSupport' },
+      { error: 'Se requiere al menos un campo: status, requiresSupport, bsaReceivedDate o serviceIntakeType' },
       { status: 400 }
     )
   }

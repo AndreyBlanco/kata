@@ -44,3 +44,7 @@ next-env.d.ts
 
 # Documentos de referencia (PDFs, Word, Excel — no van al repo)
 /miscelaneos/
+/graphify-out/
+/docs/
+
+.cursor/

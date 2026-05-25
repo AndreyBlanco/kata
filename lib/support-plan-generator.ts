@@ -4,17 +4,25 @@
  * Generador automático de borrador del Plan de Apoyo.
  * Fuente: Cuaderno Complementario N°4 — Problemas de Aprendizaje (MEP, 2023)
  *
+ * Fase 3a — E′-2: el generador se alimenta de las pruebas diagnósticas
+ * estructuradas (DiagnosticTest) tomando la última aplicación por prueba y
+ * respetando las preferencias del docente (`StudentObjectivePreference`).
+ *
  * Proceso:
  *  1. Carga la Valoración Integral: códigos de fortalezas, barreras y apoyos.
  *  2. Resuelve los códigos a etiquetas legibles desde la BD.
- *  3. Carga los StudentAssessmentResult con resultado "no" o "withSupport".
- *  4. Agrupa por dificultad → área → deriva activeDifficulties, priorityProcesses
- *     y executiveSubprocesses usando el mapeo oficial de áreas a procesos MEP.
- *  5. Aplica plantillas de estrategias por dificultad → borrador de columnas 2-4.
- *  6. Enriquece columnas 2 y 4 con contexto de barreras y apoyos de la valoración.
+ *  3. Carga los resultados de pruebas (última aplicación por prueba) y los
+ *     filtra por preferencia activa para construir el árbol dificultad → áreas
+ *     → objetivos no logrados.
+ *  4. Mapea áreas a procesos y subprocesos MEP.
+ *  5. Genera las cuatro columnas combinando plantillas + valoración + pruebas.
+ *  6. Agrega recomendaciones marcadas en las pruebas, clasificándolas por
+ *     destino (aula, hogar, específica) con la heurística D5.
  */
 
 import { prisma } from '@/lib/prisma'
+import { defaultActiveForResult } from '@/lib/diagnostic-objectives'
+import { classifyRecommendation } from '@/lib/diagnostic-vi-derived'
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tipos públicos
@@ -128,8 +136,23 @@ const DIFFICULTY_LABEL_TO_CATALOG: Record<string, string> = {
   'Discalculia':                'Discalculia',
   'Dispraxia':                  'Dispraxia',
   'TDA':                        'TDA',
+  'TDAH':                       'TDA',
   'Aprendizaje lento':          'Aprendizaje lento',
   'Aprendizaje no verbal (TANV)': 'Aprendizaje no verbal',
+  'TANV':                       'Aprendizaje no verbal',
+}
+
+// Mapeo dificultad (code en BD) → clave de STRATEGY_TEMPLATES.
+const DIFFICULTY_CODE_TO_TEMPLATE_KEY: Record<string, keyof typeof STRATEGY_TEMPLATES> = {
+  DISLEXIA:      'DISLEXIA',
+  DISGRAFIA:     'DISGRAFIA',
+  DISORTOGRAFIA: 'DISORTOGRAFIA',
+  DISCALCULIA:   'DISCALCULIA',
+  DISPRAXIA:     'DISPRAXIA',
+  TDAH:          'TDA',
+  TDA:           'TDA',
+  APZ_LENTO:     'APZ_LENTO',
+  TANV:          'TANV',
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,49 +502,75 @@ export async function generateSupportPlanDraft(
       : Promise.resolve([]),
   ])
 
-  // 3. Cargar resultados de herramienta con resultado "no" o "withSupport"
-  const failedResults = await prisma.studentAssessmentResult.findMany({
-    where: {
-      studentId,
-      result: { in: ['no', 'withSupport'] },
-    },
-    include: {
-      objective: {
-        select: {
-          difficulty: true,
-          difficultyLabel: true,
-          areaCode: true,
-          areaLabel: true,
-          level: true,
-          levelLabel: true,
-          description: true,
-        },
-      },
-    },
-    orderBy: [
-      { objective: { difficulty: 'asc' } },
-      { objective: { areaCode: 'asc' } },
-    ],
-  })
-
-  // 4. Agrupar por dificultad → área
+  // 3. Cargar resultados de pruebas + preferencias activas
   type AreaMap = Map<string, { label: string; objectives: string[] }>
   const byDifficulty = new Map<string, { label: string; areas: AreaMap }>()
+  let failedResultsCount = 0
 
-  for (const r of failedResults) {
-    const diff = r.objective.difficulty
-    const diffLabel = r.objective.difficultyLabel
-    const area = r.objective.areaCode
-    const areaLabel = r.objective.areaLabel
+  const apps = await prisma.studentDiagnosticTest.findMany({
+    where: { studentId },
+    orderBy: [{ testId: 'asc' }, { attemptNumber: 'desc' }],
+    select: { id: true, testId: true },
+  })
+  const latestAppByTest = new Map<string, string>()
+  for (const a of apps) {
+    if (!latestAppByTest.has(a.testId)) latestAppByTest.set(a.testId, a.id)
+  }
+  const latestAppIds = Array.from(latestAppByTest.values())
 
-    if (!byDifficulty.has(diff)) {
-      byDifficulty.set(diff, { label: diffLabel, areas: new Map() })
+  // Recomendaciones marcadas (D5) — clasificadas por destino
+  const mediationRecs: string[] = []
+  const homeRecs: string[] = []
+  const specificRecs: string[] = []
+
+  if (latestAppIds.length > 0) {
+    const [results, prefs, recSelections] = await Promise.all([
+      prisma.studentDiagnosticItemResult.findMany({
+        where: { studentTestId: { in: latestAppIds } },
+        include: {
+          item: { include: { activity: { include: { test: true } } } },
+        },
+      }),
+      prisma.studentObjectivePreference.findMany({
+        where: { studentId },
+        select: { itemId: true, isActive: true },
+      }),
+      prisma.studentRecommendationSelection.findMany({
+        where: { studentTestId: { in: latestAppIds }, selected: true },
+        include: { recommendation: true },
+      }),
+    ])
+    const prefByItem = new Map(prefs.map((p) => [p.itemId, p.isActive]))
+
+    for (const r of results) {
+      // Logrado → fortaleza, no entra al árbol de dificultades.
+      if (r.result === 'LOGRADO') continue
+      const isActive = prefByItem.get(r.itemId) ?? defaultActiveForResult(r.result)
+      if (!isActive) continue
+
+      const test = r.item.activity.test
+      const templateKey = DIFFICULTY_CODE_TO_TEMPLATE_KEY[test.difficulty] ?? test.difficulty
+      let diffEntry = byDifficulty.get(templateKey)
+      if (!diffEntry) {
+        diffEntry = { label: test.difficultyLabel, areas: new Map() }
+        byDifficulty.set(templateKey, diffEntry)
+      }
+      let areaEntry = diffEntry.areas.get(r.item.activityId)
+      if (!areaEntry) {
+        areaEntry = { label: r.item.activity.title.toUpperCase(), objectives: [] }
+        diffEntry.areas.set(r.item.activityId, areaEntry)
+      }
+      areaEntry.objectives.push(r.item.description)
+      failedResultsCount++
     }
-    const diffEntry = byDifficulty.get(diff)!
-    if (!diffEntry.areas.has(area)) {
-      diffEntry.areas.set(area, { label: areaLabel, objectives: [] })
+
+    for (const sel of recSelections) {
+      const cat = (sel.recommendationCategory as 'aula' | 'hogar' | 'especifica' | null)
+        ?? classifyRecommendation(sel.recommendation.text)
+      if (cat === 'aula') mediationRecs.push(sel.recommendation.text)
+      else if (cat === 'hogar') homeRecs.push(sel.recommendation.text)
+      else specificRecs.push(sel.recommendation.text)
     }
-    diffEntry.areas.get(area)!.objectives.push(r.objective.description)
   }
 
   // 5. Derivar activeDifficulties, priorityProcesses y executiveSubprocesses
@@ -582,7 +631,7 @@ export async function generateSupportPlanDraft(
     }
   } else {
     mediationLines.push(
-      'Complete la herramienta de valoración diagnóstica para generar sugerencias de mediación específicas.\n'
+      'Aplique las pruebas diagnósticas pertinentes para enriquecer las estrategias de mediación específicas por área.\n'
     )
   }
 
@@ -599,6 +648,13 @@ export async function generateSupportPlanDraft(
       'Barreras para el aprendizaje reportadas: ' +
         barrierItems.map((b) => b.label).join('; ') + '.'
     )
+  }
+
+  // Recomendaciones de pruebas clasificadas como "aula" (D5)
+  if (mediationRecs.length > 0) {
+    mediationLines.push('')
+    mediationLines.push('▸ Recomendaciones de pruebas marcadas para el aula:')
+    for (const t of mediationRecs) mediationLines.push(`  • ${t}`)
   }
 
   // 8. Columna 3: Estrategias para la casa — plantillas + acuerdos
@@ -622,7 +678,7 @@ export async function generateSupportPlanDraft(
     )
   } else {
     homeLines.push(
-      'Complete la herramienta de valoración diagnóstica para generar recomendaciones de apoyo en el hogar.'
+      'Aplique las pruebas diagnósticas pertinentes para enriquecer las recomendaciones de apoyo en el hogar.'
     )
   }
 
@@ -631,6 +687,13 @@ export async function generateSupportPlanDraft(
   if (agreements) {
     homeLines.push('\n▸ Acuerdos y compromisos establecidos en la Valoración Integral:')
     homeLines.push(agreements)
+  }
+
+  // Recomendaciones de pruebas clasificadas como "hogar" (D5)
+  if (homeRecs.length > 0) {
+    homeLines.push('')
+    homeLines.push('▸ Recomendaciones de pruebas marcadas para el hogar:')
+    for (const t of homeRecs) homeLines.push(`  • ${t}`)
   }
 
   // 9. Columna 4: Estrategias específicas del docente de apoyo
@@ -651,7 +714,7 @@ export async function generateSupportPlanDraft(
     }
   } else {
     specificLines.push(
-      'Complete la herramienta de valoración diagnóstica para identificar áreas específicas de trabajo personalizado.\n'
+      'Aplique las pruebas diagnósticas pertinentes para identificar áreas específicas de trabajo personalizado.\n'
     )
   }
 
@@ -677,6 +740,13 @@ export async function generateSupportPlanDraft(
     specificLines.push(supportsText)
   }
 
+  // Recomendaciones de pruebas clasificadas como "específica" (D5)
+  if (specificRecs.length > 0) {
+    specificLines.push('')
+    specificLines.push('▸ Recomendaciones específicas marcadas en las pruebas:')
+    for (const t of specificRecs) specificLines.push(`  • ${t}`)
+  }
+
   return {
     activeDifficulties,
     priorityProcesses: [...priorityProcessesSet],
@@ -688,7 +758,7 @@ export async function generateSupportPlanDraft(
     _meta: {
       strengthsSource,
       difficultiesFound: byDifficulty.size,
-      failedObjectivesCount: failedResults.length,
+      failedObjectivesCount: failedResultsCount,
       barrierCodesUsed: barrierItems.length,
       supportCodesUsed: supportItems.length,
     },

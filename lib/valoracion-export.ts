@@ -37,6 +37,13 @@ import {
   VerticalAlign,
   HeightRule,
 } from 'docx'
+import {
+  DEFAULT_VI_INSTRUMENTS,
+  normalizeInstrumentCodes,
+  normalizeInstrumentNotes,
+  resolveInstrumentLabel,
+  type InstrumentCatalogEntry,
+} from '@/lib/instruments'
 
 // ─────────────────────────────────────────────
 // TIPOS
@@ -421,35 +428,29 @@ function supportsSection(requiredSupports: string): Paragraph[] {
 // SECCIÓN 7 — Instrumentos
 // ─────────────────────────────────────────────
 
-const DEFAULT_INSTRUMENTS = [
-  'Observación en aula',
-  'Observación en otros contextos',
-  'Entrevista a familia',
-  'Entrevista a docentes',
-  'Instrumentos basados en el currículo',
-]
-
 function instrumentsSection(
   selected: string[],
-  notes: Record<string, string> = {}
+  notes: Record<string, string> = {},
+  catalog: InstrumentCatalogEntry[] = [],
 ): Paragraph[] {
-  const selectedSet = new Set(selected.map(s => s.trim().toLowerCase()))
+  const selectedCodes = normalizeInstrumentCodes(selected, catalog)
+  const normalizedNotes = normalizeInstrumentNotes(notes, catalog)
+  const selectedSet = new Set(selectedCodes)
   const result: Paragraph[] = []
 
-  for (const inst of DEFAULT_INSTRUMENTS) {
-    const checked = selectedSet.has(inst.toLowerCase())
+  for (const inst of DEFAULT_VI_INSTRUMENTS) {
+    const checked = selectedSet.has(inst.code)
     result.push(
       new Paragraph({
         children: [
           new TextRun({ text: checked ? '☑' : '☐', size: SIZE_BODY, font: 'Segoe UI Symbol' }),
-          new TextRun({ text: ` ${inst}`, size: SIZE_BODY, font: FONT }),
+          new TextRun({ text: ` ${inst.label}`, size: SIZE_BODY, font: FONT }),
         ],
         spacing: { after: 60 },
-      })
+      }),
     )
-    // Si el instrumento está seleccionado y tiene notas, las agrega debajo
     if (checked) {
-      const notesText = notes[inst] ?? notes[inst.toLowerCase()] ?? ''
+      const notesText = normalizedNotes[inst.code] ?? ''
       if (notesText.trim()) {
         for (const line of notesText.split('\n')) {
           if (line.trim()) {
@@ -465,7 +466,7 @@ function instrumentsSection(
                   }),
                 ],
                 spacing: { after: 40 },
-              })
+              }),
             )
           }
         }
@@ -473,10 +474,10 @@ function instrumentsSection(
     }
   }
 
-  // Instrumentos adicionales no incluidos en la lista por defecto
-  const extra = selected.filter(
-    s => !DEFAULT_INSTRUMENTS.map(d => d.toLowerCase()).includes(s.trim().toLowerCase())
-  )
+  const defaultCodes = new Set(DEFAULT_VI_INSTRUMENTS.map((d) => d.code))
+  const extra = selectedCodes
+    .filter((code) => !defaultCodes.has(code))
+    .map((code) => resolveInstrumentLabel(code, catalog))
   if (extra.length > 0) {
     result.push(
       new Paragraph({
@@ -485,7 +486,7 @@ function instrumentsSection(
           new TextRun({ text: ` Otros: ${extra.join(', ')}`, size: SIZE_BODY, font: FONT }),
         ],
         spacing: { after: 60 },
-      })
+      }),
     )
   } else {
     result.push(
@@ -495,7 +496,7 @@ function instrumentsSection(
           new TextRun({ text: ' Otros: ____________________________', size: SIZE_BODY, font: FONT }),
         ],
         spacing: { after: 60 },
-      })
+      }),
     )
   }
 

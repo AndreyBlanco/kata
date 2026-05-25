@@ -4,7 +4,21 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { type WorkModality } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { isValidSchoolPeriodId } from '@/lib/school-periods'
+
+const PROFILE_SELECT = {
+  id:         true,
+  name:       true,
+  email:      true,
+  centerName: true,
+  circuit:    true,
+  specialty:  true,
+  activeSchoolPeriod: true,
+  workModality: true,
+  createdAt:  true,
+} as const
 
 export async function GET(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
@@ -14,15 +28,7 @@ export async function GET(req: NextRequest) {
 
   const teacher = await prisma.teacher.findUnique({
     where: { id: token.teacherId as string },
-    select: {
-      id:         true,
-      name:       true,
-      email:      true,
-      centerName: true,
-      circuit:    true,
-      specialty:  true,
-      createdAt:  true,
-    },
+    select: PROFILE_SELECT,
   })
 
   if (!teacher) {
@@ -32,6 +38,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(teacher)
 }
 
+const VALID_MODALITIES: WorkModality[] = ['FIJO', 'ITINERANTE']
+
 export async function PATCH(req: NextRequest) {
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
   if (!token?.teacherId) {
@@ -39,9 +47,9 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { name, centerName, circuit, specialty } = body
+  const { name, centerName, circuit, specialty, activeSchoolPeriod, workModality } = body
 
-  const patch: Record<string, string> = {}
+  const patch: Record<string, string | WorkModality> = {}
 
   if (typeof name === 'string' && name.trim()) {
     patch.name = name.trim()
@@ -55,6 +63,12 @@ export async function PATCH(req: NextRequest) {
   if (typeof specialty === 'string' && specialty.trim()) {
     patch.specialty = specialty.trim()
   }
+  if (typeof activeSchoolPeriod === 'string' && isValidSchoolPeriodId(activeSchoolPeriod)) {
+    patch.activeSchoolPeriod = activeSchoolPeriod
+  }
+  if (typeof workModality === 'string' && VALID_MODALITIES.includes(workModality as WorkModality)) {
+    patch.workModality = workModality as WorkModality
+  }
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json(
@@ -66,14 +80,7 @@ export async function PATCH(req: NextRequest) {
   const teacher = await prisma.teacher.update({
     where: { id: token.teacherId as string },
     data: patch,
-    select: {
-      id:         true,
-      name:       true,
-      email:      true,
-      centerName: true,
-      circuit:    true,
-      specialty:  true,
-    },
+    select: PROFILE_SELECT,
   })
 
   return NextResponse.json(teacher)

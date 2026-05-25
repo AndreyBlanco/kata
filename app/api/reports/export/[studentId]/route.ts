@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { generateReport } from '@/lib/report-engine'
+import { getSchoolPeriod } from '@/lib/school-periods'
 import { generateWordDocument } from '@/lib/word-export'
 import { Packer } from 'docx'
 
@@ -19,6 +20,8 @@ export async function GET(
   const { studentId } = await params
   const { searchParams } = new URL(req.url)
   const monthsParam = searchParams.get('months')
+  const schoolPeriodId = searchParams.get('schoolPeriod')
+  const periodDef = schoolPeriodId ? getSchoolPeriod(schoolPeriodId) : undefined
   const recommendations = searchParams.get('recommendations') || ''
 
   if (!monthsParam) {
@@ -35,7 +38,9 @@ export async function GET(
 
   try {
     // Generar datos del informe
-    const report = await generateReport(token.teacherId, studentId, months)
+    const report = await generateReport(token.teacherId, studentId, months, {
+      schoolPeriodLabel: periodDef?.label,
+    })
 
     // Usar recomendaciones editadas o las generadas
     const finalRecommendations = recommendations || report.recommendations.editable

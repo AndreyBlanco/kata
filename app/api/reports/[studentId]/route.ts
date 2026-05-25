@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 import { generateReport } from '@/lib/report-engine'
+import { getSchoolPeriod } from '@/lib/school-periods'
 
 // GET — Generar informe para un estudiante
 export async function GET(
@@ -17,6 +18,8 @@ export async function GET(
   const { studentId } = await params
   const { searchParams } = new URL(req.url)
   const monthsParam = searchParams.get('months')
+  const schoolPeriodId = searchParams.get('schoolPeriod')
+  const periodDef = schoolPeriodId ? getSchoolPeriod(schoolPeriodId) : undefined
 
   if (!monthsParam) {
     return NextResponse.json(
@@ -35,8 +38,13 @@ export async function GET(
   }
 
   try {
-    const report = await generateReport(token.teacherId, studentId, months)
-    return NextResponse.json(report)
+    const report = await generateReport(token.teacherId, studentId, months, {
+      schoolPeriodLabel: periodDef?.label,
+    })
+    return NextResponse.json({
+      ...report,
+      schoolPeriod: schoolPeriodId ?? null,
+    })
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error al generar informe'
     return NextResponse.json({ error: message }, { status: 400 })

@@ -1,6 +1,6 @@
 # Katà — Notas de diseño y continuidad del proyecto
 
-> Última actualización: 26 marzo 2026 (sesión 10)  
+> Última actualización: mayo 2026 (post sesión D — Fase 2 cerrada; Fase 3a/3b documentadas)  
 > Propósito: documento de continuidad para retomar el diseño en conversaciones futuras con el agente de desarrollo.
 
 ---
@@ -566,12 +566,28 @@ Estos campos deben ser **inputs manuales** en el wizard (o "recordatorios") — 
   - `objectivesPending` + `objectivesAchieved` desde `StudentAssessmentResult`.
   - `started` = "X pendientes · Y logrados", `complete` = "¡Alta sugerida!".
 
-### Próximos pasos (sesión 11 en adelante)
+### Próximos pasos (continuidad mayo 2026)
 
-1. **Dashboard principal** — resumen de actividad reciente (valoraciones activas, objetivos pendientes, sesiones del mes).
-2. **Sesiones del periodo** — revisar flujo y vinculación con los nuevos "Objetivos de Apoyo" (los objetivos de diagnóstico reemplazan conceptualmente al `SupportObjective` para reportes).
-3. **`lib/mep-data.ts` — datos oficiales**: reemplazar datos aproximados con listado oficial del MEP (27 direcciones regionales + circuitos exactos).
-4. **Motor de informes** — actualizar `lib/report-engine.ts` para que el informe de periodo se alimente de `StudentAssessmentResult` (logros/pendientes) en lugar de `SupportObjective`.
+> **Plan maestro:** **`docs/design/plan-trabajo-maestro.md`** — leer bloque **«Punto de continuación»** al iniciar sesión.  
+> **Esquema expediente:** **`docs/design/expediente-interno.md`** — orden hub: expediente → obs → entrevistas → **pruebas** → VI.
+
+**Próxima sesión de código:** **Sesión E′ → Fase 3a** (pruebas diagnósticas en el circuito de valoración, antes de planificación).
+
+| Prioridad | Fase | Entregas clave |
+|---|---|---|
+| 1 | **3a** | Checklist pruebas en hub; progreso 8/nivel en VI; completitud VI; objetivos ↔ dificultades activas |
+| 2 | **5+6** | `ApprovedSchedule` + `ActionPlan` (consume `StudentAssessmentResult`) |
+| 3 | **7–8** | Pipeline sesiones + `PeriodReport` formato oficial |
+| par. | **3b** | 48 `.md`, 6 TANV, parser, IA v2 |
+
+Items técnicos heredados:
+
+1. **Pipeline unificado** — sesiones e informe desde `StudentAssessmentResult`, no solo `SupportObjective`.
+2. **Motor de informes** — alinear a formato oficial + persistir `PeriodReport` (Fase 8).
+3. **`lib/mep-data.ts`** — datos oficiales 27 DR + circuitos (piloto).
+4. **Dashboard docente** — actividad reciente (hub).
+
+Contenido misceláneos: **42/48** pruebas `.md` (faltan 6 TANV) → **Fase 3b**; circuito mínimo en app → **Fase 3a**.
 
 ---
 
@@ -722,6 +738,352 @@ El `INSTRUMENTS_CATALOG` era un array estático hardcodeado en `lib/catalogs.ts`
 | `app/estudiantes/[id]/objetivos/page.tsx` | **Reescrito**: tracker basado en `StudentAssessmentResult`; barra de progreso; agrupación dificultad→área; botones Logrado/Deshacer con auto-guardado; banner de alta sugerida |
 | `app/estudiantes/[id]/page.tsx` | StepCard "Objetivos" usa `objectivesPending`/`objectivesAchieved` desde API real; estados dinámicos |
 | `docs/design/kata-design-notes.md` | Actualizado: header sesión 10, tabla APIs, sección 16 (TDA/APZ_LENTO/TANV completadas), sesión 10 en próximos pasos |
+
+---
+
+## 17. Expediente interno Katà (diseño v0.2 — mayo 2026)
+
+Documento maestro: **`docs/design/expediente-interno.md`**
+
+Decisiones clave:
+
+- **Expediente único institucional** ≠ expediente interno Katà. Solo el **Informe de periodo** (formato `miscelaneos/Formato de informe de servicios de apoyo`) se archiva en el único del centro y se traslada si el estudiante cambia de escuela.
+- Expediente interno: capas **0–8** (metadatos, identificación, entrada diagnóstica, VI, plan, seguimiento, informes, legacy, timeline).
+- **Capa 6 — `PeriodReport`:** un informe por estudiante y periodo lectivo; estados internos `draft` → `exported` → `delivered` (entrega al único = `deliveredAt`, sin capa 9 separada).
+- Historial de reexportaciones: tabla hija opcional `PeriodReportExport`.
+- Planificación de acciones y registros comunidad/familias/articulación: **fuera** del expediente por estudiante.
+
+Pendiente de implementación en Prisma/UI (ver §8 de `expediente-interno.md`).
+
+---
+
+## 18. Alcance global de Katà (mayo 2026)
+
+**Documento maestro de producto:** `docs/design/alcance-global-kata.md`
+
+- **Propósito:** asistir el trabajo **diario** del docente de apoyo para que el **informe de periodo** pase de semanas a horas/minutos si hubo uso metódico en el periodo.
+- **v1:** solo **Problemas de aprendizaje (PA)**.
+- **No hace:** plan anual / plan de acción anual del centro (si se cargan, los respeta); no tramita boleta de solicitud BSA (solo flag/recuerdo).
+- **Agente IA:** práctica + **consultas sobre Líneas de acción** (corpus graphify-out).
+- **Futuro:** módulo institucional o app aparte; posible app para docentes regulares.
+
+---
+
+## 19. Sesión 11 — diseño y plan de trabajo (mayo 2026, sin código)
+
+**Documento de continuidad para código:** `docs/design/plan-trabajo-maestro.md`
+
+Resumen de decisiones no cubiertas solo por §17:
+
+| Área | Decisión |
+|---|---|
+| Planificación de acciones | Incluye todas las lecciones del horario (Anexo 1: 40 fijo / 44 itinerante); entrega a dirección = documento oficial; IA sugiere ajustes **después** del borrador mensual |
+| Horario | Base **aprobado por dirección** (regulador); Katà respeta franjas; flexibilidad semanal con compensación documentada |
+| Registros institucionales | Plano B; no alimentan expediente individual; IA puede usar patrones agregados de expedientes |
+| Agente IA | v1 primero en entrevistas y observaciones |
+| Pruebas (8 por nivel) | Parte de entrada diagnóstica / VI; perfilan necesidades y objetivos; **3a** antes de planificación; **3b** = 48 `.md` (42/48; faltan 6 TANV) |
+| Orden implementación | Fase 0–2 ✅ → **3a** → Fase 5+6 → 7–8 → **3b** (incremental) → Fase 9 |
+
+**Próxima acción acordada (mayo 2026):** **Sesión E′ — Fase 3a** (ver `plan-trabajo-maestro.md` § Punto de continuación).
+
+---
+
+### Sesión 11 (mayo 2026) — archivos de diseño
+
+| Archivo | Cambio |
+|---------|--------|
+| `docs/design/alcance-global-kata.md` | **Nuevo** — propósito, límites, v1 PA, IA + Líneas de acción, visión futura |
+| `docs/design/expediente-interno.md` | **Nuevo** — esquema capas 0–8, `PeriodReport`, frontera institucional |
+| `docs/design/plan-trabajo-maestro.md` | **Nuevo** — fases 0–10, IA, orden sesiones de código |
+| `docs/design/kata-design-notes.md` | §17–§19, §15 próximos pasos actualizado |
+
+---
+
+## 20. Sesión post-D — Fase 2 refinada + decisión Fase 3a/3b (mayo 2026)
+
+**Contexto de producto (acordado):** las 48 pruebas diagnósticas (8 por nivel de grado) no son un módulo aislado posterior a la valoración. Son el **filtro** que perfila si el estudiante presenta comportamientos en dificultades de aprendizaje o en procesos de aprendizaje, y de ahí salen los **objetivos** con los que se trabaja en aula u otros contextos mientras permanece en el servicio PA.
+
+**Implementación en esta sesión (Fase 2 — refinamiento, sin abrir 3a aún):**
+
+| Área | Cambio |
+|---|---|
+| `lib/instruments.ts` | Normalización código ↔ etiqueta; §7 VI sin duplicar borrador Capa 2 |
+| `lib/vi-capa2-derived.ts` | `buildDerivedInstruments`, `buildDerivedParticipants`, `buildViSectionFeeds` (barreras, apoyos) |
+| `lib/apply-to-assessment.ts` | Incorporar evidencia sin repetir narrativa en `instrumentNotes` |
+| API | `GET .../capa2-evidence` → `derivedInstruments`, `derivedParticipants`, `sectionFeeds` |
+| UI VI | `ViSectionInstruments`, `ViSectionParticipants`, `ViCapa2NarrativeSection`, hints §2/4/5/9 |
+| Sesión D previa | Panel Capa 2, bulk apply, `serviceIntakeType`, `review_vi`, completitud |
+
+**Decisión de roadmap:** no esperar a Fase 6 (planificación) para integrar pruebas en el flujo. La planificación **requiere** objetivos ya perfilados → **Fase 3a** antes de Sesión E (horario + planificación). El refactor masivo de archivos `.md` queda en **Fase 3b** (Sesión H, incremental).
+
+**Archivos de diseño actualizados:** `plan-trabajo-maestro.md` (§ Punto de continuación, Fases 2/3a/3b, orden sesiones E′→E).
+
+**Código existente a reutilizar en 3a:** `/herramientas/[difficulty]`, `StudentAssessmentResult`, `GET/POST .../results`, generador §6 VI, `/objetivos`, plan generator desde valoración.
+
+---
+
+## 21. Sesión E′-1 — Reemplazo total de herramientas por pruebas diagnósticas (mayo 2026)
+
+**Cambio arquitectónico:** rechazo de user test del módulo `Herramientas de valoración diagnóstica` (cuestionario sí/no/con-apoyo, sin pruebas estandarizadas) → sustitución completa por sistema basado en **Pruebas Diagnósticas Markdown** diseñadas por docente asesora. Compatibilidad histórica: **R1** = sin datos reales en BD → migración destructiva con `db push --accept-data-loss`.
+
+**Cambios principales:**
+
+| Área | Cambio |
+|---|---|
+| Schema | Removido `AssessmentObjective`, `StudentAssessmentResult`, enum `AssessmentResultValue`. Añadidos `DiagnosticTest`, `DiagnosticTestActivity`, `DiagnosticTestItem`, `DiagnosticTestRecommendation`, `StudentDiagnosticTest` (con `attemptNumber` + `draftPayload` JSON), `StudentDiagnosticItemResult`, `StudentDiagnosticActivityObservation`, `StudentRecommendationSelection`. Enum nuevo `DiagnosticItemResult` (`LOGRADO`/`EN_PROCESO`/`PRESENTA_DIFICULTAD`). |
+| Seed | `prisma/seed-diagnostic-tests.ts` parsea `miscelaneos/Pruebas diagnósticas-MD/**.md` y siembra 42 pruebas (faltan 6 TANV — sesión H). Regex flexible para `## A. Actividad: X` / `## A. X` y `### Items evaluados` / `### Ítems`. Transacciones con timeout 90s. |
+| APIs | `/api/students/[id]/diagnostic-tests` (lista por grado), `/diagnostic-tests/[testId]` (estructura), `.../applications` (POST con attemptNumber++), `/diagnostic-test-applications/[id]` (GET/PUT/DELETE — promoción de draft a tablas), `.../draft` (PATCH autosave 1.5s), `.../complete` (POST/DELETE). |
+| UI | `/estudiantes/[id]/pruebas` (lista por dificultad, modal de elección si hay aplicaciones previas), `/pruebas/[applicationId]` (formulario con autosave + impresión + confirmación de salida). |
+| Hub | `StepCard` paso 4 «Pruebas diagnósticas» (visible; no altera el checklist MEP). |
+| VI §7 | Componente `ViSectionDiagnosticTests` (read-only); eliminada toda la sección antigua de Herramientas. |
+| Stubs temporales E′-1 | `support-plan-generator` neutralizado, `/objetivos` reemplazada por explicación. |
+
+---
+
+## 22. Sesión E′-2 — Integración VI + Plan multifuente (mayo 2026)
+
+**Objetivo:** todas las fuentes Capa 2 (pruebas, entrevistas, observaciones) alimentan las secciones correspondientes de la VI; preparar el bus de aportes para informes de periodo (Fase 6/G).
+
+**Decisiones consolidadas:**
+
+- **D1 a D7:** preferencias persisten en `StudentObjectivePreference`; objetivos derivados de `EN_PROCESO`/`PRESENTA_DIFICULTAD` están activos por defecto; mapeo MEP procesos↔áreas conserva el catálogo existente; recomendaciones se mapean a columnas del Plan por heurística D5 (keywords `aula`, `hogar`, `familia` → categoría).
+- **D8:** §6 Desempeño curricular se alimenta **por asignatura** desde pruebas (asignaturas mapeadas por dificultad), observaciones y entrevistas. «Avances» solo cuando hay dos o más aplicaciones de la misma prueba con mejora entre intentos. Generador **no destructivo** — respeta entradas manuales.
+- **R7 (Capa 2 MEP):** el checklist MEP sigue en 4 pasos; las pruebas son visibles pero no participan del conteo.
+- **Sesión H (Fase 3b):** IA `recommend_tests` y guía durante aplicación.
+
+**Cambios principales:**
+
+| Capa | Archivo / Componente | Cambio |
+|---|---|---|
+| Schema | `StudentObjectivePreference` | Nueva tabla `(studentId, itemId)` única; `isActive`, `priority`, `notes`. Migración additiva (`db push` no destructivo). Añadido también `recommendationCategory` opcional en `StudentRecommendationSelection`. |
+| Lógica | `lib/diagnostic-objectives.ts` | `buildDerivedObjectives` toma última aplicación por prueba y aplica preferencias. `detectProgressBetweenAttempts` compara los dos últimos intentos por prueba. |
+| Lógica | `lib/vi-contribution-types.ts` | Tipo compartido `ViContribution` + `Capa2Source` + `ContributionCategory`. Mapeo `CONTRIBUTION_TO_VI_SECTION` reusable para informe de periodo. |
+| Lógica | `lib/diagnostic-vi-derived.ts` | Convierte resultados/avances/recomendaciones en `ViContribution`s. Mapeo dificultad→asignatura. Heurística D5 `classifyRecommendation`. Resumen para §8 `summarizeForAnalysis`. |
+| API | `/api/students/[id]/objectives` (GET) + `[itemId]/preference` (PATCH) | Devuelve derivados + avances; upsert/delete de preferencia (default-collapse para mantener tabla limpia). |
+| API | `/api/students/[id]/vi-contributions` (GET) | Bus multifuente — devuelve `contributions`, `summary` por sección, `analysisDraft`. Preparado para sumar contribuciones de entrevistas/observaciones en futura sesión. |
+| UI | `/estudiantes/[id]/objetivos` | Reemplaza stub. Filtros (activos / fortalezas / todos), agrupación por dificultad o resultado, toggle isActive con persistencia, sección de «Avances entre aplicaciones». |
+| UI | `components/vi/diagnostic-contributions-hint.tsx` | Hint colapsable con checkboxes; detecta items ya en el texto, evita duplicar; botón «Aplicar al texto». |
+| UI | VI §4/§5/§9 | Integran `DiagnosticContributionsHint` para strength/barrier/support. |
+| UI | VI §6 | Botón «Actualizar desde Capa 2» llama a `updateCurricularFromCapa2` (no destructivo, por asignatura). Avances entran como `curricular_progress`. |
+| UI | VI §8 | Bloque con resumen automático + «Pegar como borrador» / «Copiar». |
+| Lógica | `lib/support-plan-generator.ts` | Reconectado: arma árbol `byDifficulty → areas → objectives` desde `StudentDiagnosticItemResult` (última aplicación, respetando preferencia activa). Recomendaciones marcadas clasificadas por D5 enriquecen columnas 2 (aula), 3 (hogar) y 4 (específica). Mantiene plantillas MEP del Cuaderno N°4. |
+
+**Hub**: `StepCard` paso 7 «Objetivos» ya muestra conteo real (activos + fortalezas) desde `/api/students/[id]/objectives`.
+
+**Próxima sesión:** **Sesión E → Fases 5+6** (horario base + planificación de acciones).
+
+---
+
+## 23. Sesión E — Horario base + Planificación de acciones MVP (mayo 2026)
+
+**Contexto:** primera versión funcional del **plano B** (servicio docente). Cierra Fases 5 y 6 del plan maestro con un MVP completo: horario semanal por categoría Anexo 1, plan mensual operable, y exportación Word del Anexo 5 (3 columnas).
+
+**Decisiones de scope (P1–P11):**
+
+| Decisión | Resultado |
+|---|---|
+| P1 — Modalidad | `Teacher.workModality` enum (`FIJO` default / `ITINERANTE`); editable en `/perfil`. Piloto se prepara para ambas; en producción se valida según docente. |
+| P2 — Granularidad horario | Grilla semanal 5d × bloques. Referencia única: `miscelaneos/Horario` (jornada única). Deuda técnica documentada: jornada doble, unidocentes y horarios variables van a v2. |
+| P3 — Categorías Anexo 1 | Hardcoded en `lib/schedule-template.ts` con cupos `FIJO`/`ITINERANTE` y color Tailwind. Migrar a catálogo BD es v2. |
+| P4 — Granularidad plan | **Mensual**, un plan por (docente, año, mes), editable individualmente. Solo meses del periodo activo. |
+| P5 — Estados | `BORRADOR` ↔ `APROBADO`. Aprobación del docente = autorización (Katà no fiscaliza). Reabrir → borrador → sobrescribe `approvedAt`. Sin historial de versiones. |
+| P6 — Línea | `category`, `mepProcess`, `description`, `observations`, `lessonCount`, `studentId?`, `linkedItemIds[]`, `sortOrder`. |
+| P7 — Export oficial | Word `.docx` (`lib/action-plan-word-export.ts`) — Anexo 5 con tabla 3 columnas por categoría + impresión navegador. |
+| P8 — Vínculo objetivos | Multi-checkbox de items derivados activos (filtrados por estudiante seleccionado). Modal lateral muestra la lista en línea. |
+| P9 — Lectura agregada | Cabecera `/planificacion` con contadores estáticos (`/api/teacher/service-summary`: activos, con plan, con VI, distribución por dificultad). |
+| P10 — Legacy | `SupportObjective` y `/sesiones/registrar` quedan vivos hasta Sesión F (Fase 7). |
+| P11 — Validación | Panel numérico — cupo por categoría (semanal × semanas del mes) con badge `ok` / `under` / `over`. Sin IA en E. |
+
+**UI preferences confirmadas por el usuario:**
+- **Color por categoría** en celdas del horario y del calendario del plan.
+- **Modal lateral** (no popover) para detalles de lección al hacer click sobre un slot.
+
+**Entregables Sesión E:**
+
+| Capa | Archivo | Detalle |
+|---|---|---|
+| Prisma | `prisma/schema.prisma` | Enums: `WorkModality`, `ScheduleBlockType`, `AfternoonVariant` (A/B reservados), `ServiceLessonCategory` (6 categorías), `MepProcess`, `ActionPlanStatus`. Modelos: `ApprovedSchedule`, `ScheduleSlot`, `ActionPlan`, `ActionPlanLine`, `ActionPlanSlot`. Unique constraints `(teacherId, schoolPeriod)` y `(teacherId, year, month)`. Push no-destructivo. |
+| Lib | `lib/schedule-template.ts` | `SERVICE_CATEGORIES` (código, label, short, color Tailwind, cupos por modalidad), `buildWeeklyScheduleTemplate()` que materializa la jornada de `miscelaneos/Horario`. |
+| Lib | `lib/action-plan-validation.ts` | `weeksInMonth`, `listMonthWeekdays` (lun-vie), `isMonthInSchoolPeriod`, `validateMonthlyPlan`, helpers UI (`categoryStatusBadge`, `monthLabel`). |
+| Lib | `lib/action-plan-word-export.ts` | Builder docx Anexo 5: encabezado con datos del docente + tabla por categoría con `Proceso · Lecciones · Descripción`. Incluye estudiante asociado y conteo de objetivos vinculados. |
+| API | `/api/schedule` (GET/PUT) | GET hace seed automático del horario si no existe (jornada referencia). PUT actualiza categorías de slots LESSON + flag `approve`. |
+| API | `/api/action-plans` (GET/POST) | Lista planes del periodo (con `linesCount`); POST valida `isMonthInSchoolPeriod`, devuelve 409 si ya existe. |
+| API | `/api/action-plans/[id]` (GET/PATCH/DELETE) | GET enriquece con `weekdays`, `schedule`, `validation` (cupos). PATCH reemplaza atómicamente líneas+slots (saneamiento + detección de colisiones). DELETE sólo si BORRADOR. |
+| API | `/api/action-plans/[id]/approve` (POST/DELETE) | POST → APROBADO (`approvedAt = now`); DELETE → reabre como BORRADOR (conserva `approvedAt` histórico). |
+| API | `/api/action-plans/[id]/export` | Devuelve `.docx` Anexo 5; filename `plan_acciones_{mes}_{año}_{docente}.docx`. |
+| API | `/api/teacher/service-summary` | Cabecera P9 — contadores activos / con plan / con VI + distribución por dificultad. |
+| API | `/api/teacher/students-with-objectives` | Lista compacta para el selector del modal (estudiantes activos + objetivos derivados isActive). |
+| API | `/api/profile` (PATCH) | Acepta `workModality` y persiste `activeSchoolPeriod` (corrige bug previo donde la UI lo enviaba sin guardarse). |
+| UI | `/perfil` | Selector segmentado `FIJO`/`ITINERANTE` con cupos visibles. |
+| UI | `/horario` | `ScheduleGrid` con celdas coloreadas por categoría, popover de asignación, panel de cupos en cabecera, botones `Guardar` / `Guardar + aprobar` / `Reabrir`. |
+| UI | `/planificacion` | Cabecera resumen (contadores P9) + lista de planes + wizard «Nuevo plan mensual» (sólo meses del periodo sin plan). |
+| UI | `/planificacion/[id]` | 3 tabs: **Calendario** (semana × día × bloque con click → `PlanSlotModal` lateral), **Documento** (Anexo 5 — 3 cols con totales por categoría), **Validación** (cupos calculados en cliente en vivo). Acciones: `Guardar borrador`, `Aprobar`, `Reabrir`, `Exportar Word`, `Borrar`. |
+| Componentes | `components/schedule/schedule-grid.tsx` | Grilla semanal reutilizable. |
+| Componentes | `components/plan/plan-calendar.tsx` | Calendario mensual (semanas × días × bloques LESSON; muestra snippet de la línea asignada). |
+| Componentes | `components/plan/plan-slot-modal.tsx` | Modal lateral: si la lección está libre → crear línea o asignar a existente de la misma categoría; si tiene línea → editar descripción/proceso/categoría/estudiante + lista de objetivos derivados con checkbox. Vaciar lección libera el slot. |
+| Componentes | `components/plan/plan-document.tsx` | Vista tabla Anexo 5 print-friendly agrupada por categoría. |
+| Componentes | `components/plan/plan-validation.tsx` | Panel de cupos con badge por categoría. |
+| Componentes | `components/plan/plan-types.ts` | Tipos compartidos entre tabs. |
+| Nav | `app/(app)/page.tsx` | Quick links añadidos a Horario y Planificación (barra inferior mantiene 5 items; ver deuda técnica). |
+| Docs | `docs/design/plan-trabajo-maestro.md` | Fases 5 y 6 marcadas como completadas (Sesión E); siguiente = Sesión F (Fase 7). |
+
+**Deuda técnica registrada (Sesión E):**
+
+- **Jornada única solamente**: la plantilla horaria es fija (referencia `miscelaneos/Horario`). Jornada doble, unidocentes, horarios variables por centro → v2. El enum `AfternoonVariant` y campo `notes` están preparados.
+- **Categorías Anexo 1 hardcoded** en `lib/schedule-template.ts`. Migrar a tabla BD requerirá script de seed y editor admin → v2.
+- **Sin historial de versiones del plan** ni del horario: al reabrir+reaprobar se sobrescribe `approvedAt`. `SupportPlanVersion` es el patrón a replicar.
+- **`ActionPlanSlot.weekNumber`** se almacena tal como llega del cliente (semana ISO calculada en `listMonthWeekdays`); validar consistencia futura si cambia la regla de semanas.
+- **Validación únicamente numérica**: cupos por categoría vs. lecciones. Sin IA, sin sugerencias post-borrador (Fase 7+).
+- **Barra inferior de navegación saturada** (5 items). Horario y Planificación viven en quick links de home. Si la fricción se manifiesta en piloto, evaluar tab «Plan» que agrupe ambos.
+- **Word Anexo 5 simplificado**: encabezado con datos del docente + tabla 3 cols. El formato MEP oficial puede requerir logos/pies institucionales que se evaluará al confirmar plantilla 2026.
+- **`/api/profile` PATCH previamente no persistía `activeSchoolPeriod`**: bug aprovechado y corregido en Sesión E.
+
+**Próxima sesión:** **Sesión F → Fase 7** (pipeline de sesiones unificado: bitácoras alimentadas por objetivos derivados, vínculo planificación → sesiones programadas por estudiante, `/sesiones` global, adjuntos).
+
+---
+
+## 24. Sesión F-1 — Documentos institucionales: Plan de Acción Anual (Anexo 2) (mayo 2026)
+
+**Contexto:** preparación de la entrada de IA preliminar (Sesión F-2). La planificación de acciones mensual del docente PA debe "desprenderse" del Plan de Acción Anual del servicio (Anexo 2, Líneas de Acción MEP 2023). Antes de que la IA pueda generar borradores, necesita un payload estructurado a partir del documento que la dirección/equipo PA elabora externamente.
+
+**Decisión de scope clave:** revisión textual del Anexo 1 (líneas 1208–1210, 1340–1341, 1621, 2525) confirma que **solo el Plan de Acción Anual** alimenta directamente la planificación mensual. El PAT del centro consume al Plan de Acción Anual (no al revés) — queda fuera. La autoevaluación (Anexo 1 Cuaderno 1) es insumo del Plan Anual pero también externa.
+
+**Decisiones de implementación (Q1–Q3):**
+
+| Decisión | Resultado |
+|---|---|
+| Q1 — Cómo registramos el documento | a) **Solo extraemos texto** (sin guardar binario) + payload IA en BD. El docente conserva el original. |
+| Q2 — Flujo de IA | b) **Genera + asigna a slots automáticamente** respetando cupos del horario. (Aplica a F-2; F-1 solo extrae el insumo.) |
+| Q3 — Alcance de la sesión | b) **F-1 solo upload + extracción IA + UI documentos**. F-2 (IA preliminar mensual) en sesión siguiente. |
+
+**Decisiones técnicas confirmadas:**
+- Tamaño máximo: 5 MB
+- Tipos permitidos: PDF (.pdf) + Word (.docx). `.doc` legacy excluido (mammoth no lo lee bien).
+- Procesamiento: síncrono (HTTP espera hasta ~30s). Migrar a job queue es deuda técnica para v2.
+- Año lectivo: dropdown con años disponibles del calendario MEP (`lib/school-periods.ts`).
+- Storage: solo texto + payload en BD, no binario.
+- Proveedor IA: hereda del configurado en `lib/assistant/client.ts` (Google → OpenAI → Anthropic; fallback heurístico si no hay key).
+- Solo `PLAN_ACCION_ANUAL` activo; enum `InstitutionalDocumentType` deja preparados `PAT`, `AUTOEVALUACION`, `OTRO` para futuro.
+
+**Entregables Sesión F-1:**
+
+| Capa | Archivo | Detalle |
+|---|---|---|
+| Prisma | `prisma/schema.prisma` | Enums `InstitutionalDocumentType` (4 valores, 1 activo), `InstitutionalDocumentStatus` (UPLOADED/PROCESSING/PROCESSED/ERROR). Modelo `InstitutionalDocument` con texto extraído + payload JSON + metadata IA (provider, model, summary, error). FK a `Teacher` con cascade. Push no-destructivo. |
+| Lib | `lib/institutional-document-types.ts` | `ActionPlanAnnualPayload` (ejes/objetivos/actividades + `suggestedCategory: ServiceLessonCategory \| null` + `suggestedProcess: MepProcess \| null` + `months: number[]` + `objectiveIds[]` para vincular actividades a objetivos). `ExtractionResult`, helpers `emptyAnnualPayload`/`countAnnualPayload`. |
+| Lib | `lib/text-extraction.ts` | `extractTextFromUpload({buffer, mime, filename})` con import dinámico de `pdf-parse` y `mammoth` (compatibilidad Node runtime). `TextExtractionError` con códigos identificables (UNSUPPORTED_MIME, TOO_LARGE, EMPTY_TEXT, PARSE_FAILED, EMPTY_FILE). Limpieza básica de texto (nbsp → espacio, colapso de saltos). |
+| Lib | `lib/assistant/institutional-doc-prompts.ts` | System prompt MEP/CR + user prompt con esquema JSON estricto, hints para mapear actividades a categorías Anexo 1 y procesos MEP, truncado a 60K caracteres. Prompt separado para resumen ejecutivo. |
+| Lib | `lib/institutional-document-parser.ts` | `parseActionPlanDocument` con flujo IA → parsing JSON robusto (acepta backticks) → normalización (filtra enums inválidos, valida `objectiveIds`, hace IDs locales O1/O2/E1/A1...). Fallback heurístico por regex cuando no hay IA configurada (status='partial'). Resumen ejecutivo en segunda pasada IA (con fallback humano). |
+| API | `POST/GET /api/institutional-documents` | POST multipart/form-data, validación, extracción texto, IA sync, persistencia. `runtime = 'nodejs'`, `maxDuration = 60`. GET lista con filtros por type/year/status. |
+| API | `GET/PATCH/DELETE /api/institutional-documents/[id]` | Detalle completo, edición de metadata (title/year/notes), borrado. |
+| API | `POST /api/institutional-documents/[id]/reprocess` | Re-corre IA sobre el `extractedText` ya guardado, sin re-subir archivo. Útil tras configurar API key o cuando IA falló por rate-limit. |
+| UI | `/planificacion/documentos` | Form de upload (título, año del calendario MEP, archivo), listado con tarjetas (badge de estado, contadores `objectives/activities`, summary IA en línea, fecha de procesamiento, botones reprocesar/borrar). Aviso si IA no configurada. Redirección automática al detalle tras upload exitoso. |
+| UI | `/planificacion/documentos/[id]` | Resumen IA + datos del plan (centro, servicio, docentes, objetivo general) + ejes + objetivos numerados (con población meta, eje, resultados esperados) + actividades con tarjeta enriquecida (categoría sugerida con color Anexo 1, proceso MEP, meses, cronograma textual, responsables, vínculos a objetivos). Texto extraído colapsable para auditoría. Botones reprocesar/borrar. |
+| Nav | `app/(app)/planificacion/page.tsx` | Botón "Documentos institucionales" en cabecera de la lista de planes mensuales. |
+| Deps | `package.json` | `pdf-parse` + `mammoth` + `@types/pdf-parse` (devDep). |
+| Docs | `docs/design/plan-trabajo-maestro.md` | Nueva Fase 6b documentada como completa; Fase 6c proyectada como F-2. |
+
+**Deuda técnica registrada (F-1):**
+
+- **Procesamiento síncrono**: el cliente espera hasta 30s. Cuando el piloto crezca, migrar a job queue con polling (status PROCESSING → PROCESSED).
+- **Sin OCR**: PDFs escaneados sin capa de texto fallan con `TextExtractionError code=EMPTY_TEXT` y mensaje sugiriendo conversión a Word u OCR previo.
+- **Truncado a 60K caracteres**: documentos muy largos pierden contenido del final. Solución v2: chunking multi-pass + síntesis.
+- **No conservamos binario**: si en el futuro la dirección pide auditoría del PDF original, no podremos recuperarlo. Aceptado para piloto.
+- **Sin editor del payload extraído**: si la IA extrae mal, el flujo es reprocesar o re-subir. Editor campo-por-campo queda para v2.
+- **PAT y autoevaluación Anexo 1** reservados en el enum pero sin UI/lógica. Cuando se activen requerirán prompts dedicados y posiblemente nuevas tablas (objetivos del PAT podrían linkearse a objetivos del Plan de Acción Anual).
+- **Sin historial de versiones**: cada upload crea un documento nuevo. El docente debe borrar el anterior si quiere reemplazarlo.
+- **Fallback heurístico es muy básico**: solo busca encabezados "Objetivo N..." y "Actividad N...". Útil para piloto local sin API key, no para producción seria.
+- **Mapeo a `ServiceLessonCategory`/`MepProcess` es opinable**: depende de qué tan bien describa el Plan Anual cada actividad. F-2 deberá validar y ajustar cuando use estos campos para asignar a slots.
+
+**Cadena documental MEP confirmada (citas oficiales):**
+
+```
+Anexo 1 Cuaderno 1 — Informe autoevaluación del centro
+  ↓ "del cual se desprende el Plan de acción anual" (L1072-1073)
+Anexo 2 — Plan de Acción Anual ← ÚNICO insumo cargado en Katà
+  ↓ "del cual se desprende la planificación de acciones (anexo 5)" (L1621, L1341)
+  ↓ "se deriva del plan de acción anual Y de la identificación de los
+    requerimientos de apoyo de la persona estudiante" (L2525) ← clave para
+    modo B (fallback expedientes) en F-2
+Anexo 5 — Planificación de acciones (mensual) ← Sesión E ya construida
+PAT del centro
+  ↑ "las acciones... deben ser insumos para el PAT del año siguiente" (L1208-1209)
+  ↑ Plan Anual del servicio "responde al PAT vigente" (L1210)
+  No es insumo directo del mensual; queda fuera de scope.
+```
+
+**Próxima sesión:** **Sesión F-2 — IA preliminar mensual** que genera líneas completas del plan a partir de `InstitutionalDocument` (modo A) o expedientes de estudiantes activos (modo B fallback), asignando automáticamente a slots del horario y respetando cupos.
+
+---
+
+## 25. Sesión F-2 — IA preliminar del plan mensual (mayo 2026)
+
+**Contexto:** cerrada la Sesión F-1 (carga + extracción del Plan de Acción Anual), faltaba el paso central de la Fase 6: que la IA genere el contenido del plan mensual a partir de ese insumo (Modo A) o, cuando no exista, desde los expedientes (Modo B). La conversación de planeamiento abrió decisiones G1–G5 y validó la decisión arquitectónica que unifica los modos.
+
+**Decisiones de implementación (G1–G5):**
+
+| Decisión | Resultado |
+|---|---|
+| G1 — Selección de modo | a) **Auto-detect** + variante: cuando no hay doc institucional, Katà **genera un documento suplente** con el mismo esquema (Objetivos · Actividades · Cronograma · Responsables) desde los expedientes, marcando `responsibleTeachers = [docente actual]`. Eso unifica el flujo en uno solo (siempre hay plan anual que alimenta al mensual). |
+| G2 — Plan no vacío | c) **Confirmación con advertencia**: si hay líneas existentes, la API responde 409 `CONFIRM_OVERWRITE` con el conteo; el modal en UI re-pide con `overwriteExisting=true`. Plan vacío → directo. |
+| G3 — Trazabilidad | a) **Sí**: `ActionPlanLine` += `aiGenerated`, `sourceDocumentId` (FK), `linkedAnnualActivityId` (id local de la actividad anual). `InstitutionalDocument` += `aiGenerated` para distinguir oficial vs suplente. |
+| G4 — Preview vs aplicar | a) **Directo al plan**: el docente recibe el plan completo (líneas + asignaciones) y edita con las herramientas que ya existen (`PlanSlotModal`, `PlanValidationPanel`). Sin pantalla intermedia. |
+| G5 — IA + backend | **División de responsabilidades**: la IA genera líneas con `lessonCount` por categoría (contenido pedagógico); el `slot-assigner` determinístico decide a qué `scheduleSlotId + date` va cada lección, respetando cupos y equilibrando semanas. |
+
+**Por qué la variante del doc suplente importa:** con ella, no hay dos flujos paralelos (un parser para doc oficial y otro para expedientes). Todo desemboca en un `ActionPlanAnnualPayload` (oficial o IA-generado) y un único prompt mensual lo consume. El docente además ve el suplente en `/planificacion/documentos`, puede revisar y editar conceptos, o reemplazarlo subiendo el oficial cuando llegue.
+
+**Entregables Sesión F-2:**
+
+| Capa | Archivo | Detalle |
+|---|---|---|
+| Prisma | `prisma/schema.prisma` | `ActionPlanLine` += `aiGenerated`, `sourceDocumentId`, `linkedAnnualActivityId` + índice por documento. `InstitutionalDocument` += `aiGenerated`; campos de archivo opcionales para suplentes; relación inversa `actionPlanLines[]`. Push no-destructivo. |
+| Lib | `lib/action-plan-context.ts` | Colector unificado: plan + horario aprobado + cupos mensuales (semana × modalidad × weeksInMonth) + doc institucional vigente del año (ordenado preferiendo oficial sobre suplente) + estudiantes activos con barreras/apoyos requeridos y objetivos derivados activos. `summarizeContextForPrompt` genera el bloque legible para los prompts. Tipos: `ActionPlanGenerationContext`, `ContextScheduleSlot`, `ContextStudent`, `ContextCategoryQuota`. Errores tipificados (`PLAN_NOT_FOUND`, `SCHEDULE_NOT_FOUND`, `SCHEDULE_NOT_APPROVED`, `NO_ACTIVE_STUDENTS`). |
+| Lib | `lib/assistant/action-plan-ai-prompts.ts` | System prompt MEP. Dos prompts: `buildAnnualPayloadFromRecordsPrompt` (genera `ActionPlanAnnualPayload` suplente desde expedientes; obliga a cubrir las 6 categorías Anexo 1) + `buildMonthlyLinesFromAnnualPrompt` (genera líneas con cupos exactos; filtra actividades anuales por mes; aclara si es plan oficial o suplente; describe los 3 procesos MEP). |
+| Lib | `lib/action-plan-slot-assigner.ts` | Algoritmo: por categoría arma instancias (slot × fecha) del mes, ordena por semana/día/bloque, reparte demanda de líneas en rondas. Reporta `unassigned[]` con razón. Devuelve `AssignmentResult` con `perCategory` (demand vs capacity vs assigned). |
+| Lib | `lib/action-plan-ai-generator.ts` | Orquestador `generateMonthlyPlanDraft({teacherId, planId})`. Flujo: 1) contexto, 2) IA configurada o `AI_NOT_CONFIGURED`, 3) auto-detect modo y si Modo B genera + persiste doc suplente (`aiGenerated=true`, sin archivo fuente), 4) IA mensual, 5) normalización (valida categoría/proceso/studentId/itemId/activityId; recorta excesos por categoría; agrega línea genérica si falta cupo), 6) `assignLinesUsingContext`, 7) devuelve outcome. `defaultLineDescription` provee fallback por categoría. |
+| API | `POST /api/action-plans/[id]/ai-generate` | Body `{ overwriteExisting?: boolean }`. 409 `CONFIRM_OVERWRITE` con `existingLines` si hay contenido y no se confirma. 422 con `code` (`PLAN_NOT_FOUND`, `SCHEDULE_NOT_FOUND`, `SCHEDULE_NOT_APPROVED`, `NO_ACTIVE_STUDENTS`, `AI_NOT_CONFIGURED`, `AI_FAILED`, `AI_INVALID_JSON`). Transacción atómica que borra líneas previas y crea las nuevas con sus slots + persiste `notes` IA. `runtime = 'nodejs'`, `maxDuration = 60`. |
+| API | `GET/PATCH /api/action-plans/[id]` | Extendido: devuelve y persiste `aiGenerated`, `sourceDocumentId`, `linkedAnnualActivityId` en cada línea. |
+| API | `GET /api/institutional-documents[/...]` | Extendido: devuelve `aiGenerated` para distinguir oficial vs suplente. |
+| Types | `components/plan/plan-types.ts` | `PlanLine` += `aiGenerated?`, `sourceDocumentId?`, `linkedAnnualActivityId?`. |
+| UI | `/planificacion/[id]` | Botón "✨ Generar con IA" (sólo cuando BORRADOR). `AiGenerateModal` interno: explica modo automático + crea suplente si hace falta + advierte de overwrite con conteo. Estados: idle / busy (spinner bloqueante) / error (con re-intentar `overwriteExisting=true` si conflicto) / success (resumen + link al doc suplente cuando se creó + warnings de cupo/asignación). |
+| UI | `PlanDocument` + `PlanSlotModal` | Badge `⚙ IA` en líneas generadas (tooltip con `linkedAnnualActivityId` si aplica). En el modal de edición, banner indicando origen IA cuando corresponde. |
+| UI | `/planificacion/documentos` (lista y detalle) | Badge `⚙ Generado por Katà` para suplentes. Banner destacado en el detalle invitando a reemplazarlo cuando llegue el oficial. Manejo seguro de campos opcionales del archivo (`originalFileName/mimeType/fileSizeBytes/extractedText`) ahora que pueden ser null. |
+
+**Cadena documental con doc suplente:**
+
+```
+¿Existe InstitutionalDocument PROCESSED del año?
+   ├── SÍ (oficial o suplente previo)
+   │     └── Modo A: IA mensual lo consume
+   └── NO
+         ├── Modo B paso 1: IA genera ActionPlanAnnualPayload suplente
+         │     desde expedientes (objetivos comunes, dificultades repetidas,
+         │     cobertura mínima de las 6 categorías Anexo 1)
+         ├── Persistir como InstitutionalDocument con aiGenerated=true
+         │     (sin archivo fuente, responsibleTeachers=[docente actual])
+         └── Modo B paso 2: IA mensual lo consume (igual que Modo A)
+
+Salida común:
+   - lines[] con lessonCount por categoría = cupo mensual exacto
+   - assigner determinístico: cada lección → (scheduleSlotId, date) libre
+   - Persistir con aiGenerated=true, sourceDocumentId, linkedAnnualActivityId
+```
+
+**Deuda técnica registrada (F-2):**
+
+- **Assigner pedagógicamente ciego**: no prioriza continuidad semanal por estudiante ni por línea. Cualquier slot libre de la categoría es candidato. v2 → preferir mismo día/semana para una misma línea cuando aplica.
+- **Sin embeddings ni agrupación previa para Modo B**: la IA detecta patrones en lo que le mostramos en bruto. Si hay >30 estudiantes, parte del contexto se pierde por límites de tokens.
+- **Sin re-generación parcial**: una sola categoría, una sola semana o un solo estudiante no se pueden regenerar. Todo o nada.
+- **Sin historial de generaciones IA**: cada `/ai-generate` pisa la corrida anterior. Conservar versiones del payload generado por trazabilidad queda para v2.
+- **Doc suplente sin archivo fuente**: al borrarlo (`onDelete: SetNull`), las líneas mensuales pierden la referencia pero no se borran. No se regenera automáticamente.
+- **Cupos asumen distribución uniforme** (`weeksInMonth()`): no contempla feriados, semanas reducidas o jornadas especiales. Las definidas por el calendario MEP se asumen "hábiles".
+- **Slots LESSON sin categoría asignada**: si el docente dejó slots LESSON con `category=null`, el cupo de esa categoría queda en 0 capacidad. La IA igual genera líneas hasta el cupo Anexo 1 y el assigner las marca como `NO_SLOTS_FOR_CATEGORY` en warnings. Solución: completar el horario en `/horario` antes de generar.
+- **Validación de cupos vs IA**: si la IA propone más que el cupo, `normalizeMonthlyLines` recorta empezando por la última línea (puede dejar descripciones cortadas o líneas con `lessonCount=0` que se eliminan). Si propone menos, se agrega una línea genérica con `defaultLineDescription`. Comportamiento conservador; un re-prompt con feedback queda para v2.
+- **Prompts no editables desde UI**: los prompts viven en `lib/assistant/`; ajustes finos requieren código + redeploy.
+- **Fallback heurístico no aplica a F-2**: si no hay IA configurada, `/ai-generate` responde 422 `AI_NOT_CONFIGURED`. El heurístico de F-1 (extracción) no genera planes mensuales razonables, así que no se reusa.
+- **Modal IA es bloqueante (~20-40s)**: igual que F-1, el cliente espera. Cuando el piloto crezca, migrar a job queue con polling.
+
+**Próxima sesión:** **Sesión G → Fase 7** (pipeline de sesiones unificado: bitácora alimentada por objetivos derivados, vínculo planificación → sesiones programadas por estudiante, `/sesiones` global, adjuntos).
 
 ---
 
