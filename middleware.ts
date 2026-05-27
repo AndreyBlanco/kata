@@ -3,7 +3,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
 
-const PUBLIC_PATHS = ['/login', '/api/auth']
+// Rutas públicas (sin auth). Importante: aquí entran endpoints como /api/signup
+// para permitir alta de cuenta desde /login en el piloto.
+const PUBLIC_PATHS = ['/login', '/api/auth', '/api/signup']
 
 function isPublicPath(pathname: string): boolean {
   return PUBLIC_PATHS.some((path) => pathname.startsWith(path))
