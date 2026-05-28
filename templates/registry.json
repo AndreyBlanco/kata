@@ -1,0 +1,14 @@
+{
+  "templates": [
+    {
+      "id": "bsa-2026",
+      "documentType": "BSA",
+      "templateVersion": "2026",
+      "file": "templates/bsa-2026.docx",
+      "manifest": "templates/bsa-2026.manifest.json",
+      "effectiveFrom": "2026-01-01",
+      "source": "miscelaneos\\BSA-2026.docx",
+      "dataSchema": "StudentBsaFields"
+    }
+  ]
+}

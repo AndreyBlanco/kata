@@ -24,6 +24,13 @@ type StudentData = {
   birthDate: string
   grade: string
   classroomTeacherName?: string
+  educationalCenter?: {
+    id: string
+    name: string
+    circuit: string
+    budgetCode: string
+    directorName: string
+  } | null
 }
 
 type TimelineEvent = {
@@ -63,6 +70,9 @@ export default function ExpedienteHubPage() {
   const [activeSchoolPeriodId, setActiveSchoolPeriodId] = useState<string | null>(null)
   const [serviceIntakeType, setServiceIntakeType] = useState<ServiceIntakeType | null>(null)
   const [intakeSaving, setIntakeSaving] = useState(false)
+
+  const [hasBsaArchive, setHasBsaArchive] = useState(false)
+  const [bsaExportReady, setBsaExportReady] = useState(false)
 
   const [capa2, setCapa2] = useState({
     expedienteReviewed: false,
@@ -112,6 +122,16 @@ export default function ExpedienteHubPage() {
           setAssessmentStatus(hasSubstantive ? 'started' : 'empty')
         }
       }
+    }
+
+    const bsaRes = await fetch(`/api/students/${studentId}/bsa`)
+    if (bsaRes.ok) {
+      const bsaData = await bsaRes.json()
+      setHasBsaArchive(true)
+      setBsaExportReady(!!bsaData.exportReadiness?.ready)
+    } else {
+      setHasBsaArchive(false)
+      setBsaExportReady(false)
     }
 
     const pRes = await fetch(`/api/support-plans/${studentId}`)
@@ -390,6 +410,65 @@ export default function ExpedienteHubPage() {
           saving={bsaSaving}
           onChange={handleBsaChange}
         />
+
+        {hasBsaArchive && (
+          <StepCard
+            step={1}
+            title="Boleta BSA"
+            description="Editar solicitud y exportar resolución para imprimir"
+            status={bsaExportReady ? 'complete' : 'started'}
+            statusLabels={{
+              empty: 'Sin archivo',
+              started: 'Resolución pendiente',
+              complete: 'Lista para imprimir',
+            }}
+            onClick={() => router.push(`/estudiantes/${studentId}/expediente/bsa`)}
+          />
+        )}
+
+        {student.educationalCenter && (
+          <button
+            type="button"
+            className="w-full text-left"
+            onClick={() => hasBsaArchive && router.push(`/estudiantes/${studentId}/expediente/bsa`)}
+            disabled={!hasBsaArchive}
+          >
+            <Card
+              padding="sm"
+              className={hasBsaArchive ? 'transition-colors hover:border-kata-primary/40' : ''}
+            >
+            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              Centro educativo
+            </p>
+            <p className="mt-1 text-sm font-semibold text-gray-900">
+              {student.educationalCenter.name}
+            </p>
+            <dl className="mt-2 space-y-1 text-xs text-gray-600">
+              {student.educationalCenter.circuit && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-gray-500">Circuito:</dt>
+                  <dd>{student.educationalCenter.circuit}</dd>
+                </div>
+              )}
+              {student.educationalCenter.budgetCode && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-gray-500">Código presup.:</dt>
+                  <dd>{student.educationalCenter.budgetCode}</dd>
+                </div>
+              )}
+              {student.educationalCenter.directorName && (
+                <div className="flex gap-2">
+                  <dt className="shrink-0 text-gray-500">Director(a):</dt>
+                  <dd>{student.educationalCenter.directorName}</dd>
+                </div>
+              )}
+            </dl>
+            {hasBsaArchive && (
+              <p className="mt-2 text-xs text-kata-primary">Ver boleta completa →</p>
+            )}
+            </Card>
+          </button>
+        )}
 
         {!bsaReceived && (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">

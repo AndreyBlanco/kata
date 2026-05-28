@@ -1,0 +1,229 @@
+{
+  "id": "bsa-2026",
+  "documentType": "BSA",
+  "templateVersion": "2026",
+  "sourceFile": "miscelaneos\\BSA-2026.docx",
+  "generatedAt": "2026-05-28T22:33:26.877Z",
+  "dataSchema": "StudentBsaFields",
+  "fields": [
+    {
+      "id": "institution_centerName",
+      "marker": "institution.centerName",
+      "schemaPath": "institution.centerName",
+      "label": "Nombre del centro educativo",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "institution_circuit",
+      "marker": "institution.circuit",
+      "schemaPath": "institution.circuit",
+      "label": "Circuito",
+      "type": "text"
+    },
+    {
+      "id": "institution_budgetCode",
+      "marker": "institution.budgetCode",
+      "schemaPath": "institution.budgetCode",
+      "label": "Código presupuestario",
+      "type": "text"
+    },
+    {
+      "id": "institution_directorName",
+      "marker": "institution.directorName",
+      "schemaPath": "institution.directorName",
+      "label": "Nombre del director",
+      "type": "text"
+    },
+    {
+      "id": "institution_referenceDateDisplay",
+      "marker": "institution.referenceDateDisplay",
+      "schemaPath": "institution.referenceDate",
+      "label": "Fecha confección referencia",
+      "type": "date"
+    },
+    {
+      "id": "student_fullName",
+      "marker": "student.fullName",
+      "schemaPath": "student.fullName",
+      "label": "Nombre completo estudiante",
+      "type": "text",
+      "required": true
+    },
+    {
+      "id": "student_birthDateDisplay",
+      "marker": "student.birthDateDisplay",
+      "schemaPath": "student.birthDate",
+      "label": "Fecha de nacimiento",
+      "type": "date"
+    },
+    {
+      "id": "student_ageAsWritten",
+      "marker": "student.ageAsWritten",
+      "schemaPath": "student.ageAsWritten",
+      "label": "Edad",
+      "type": "text"
+    },
+    {
+      "id": "student_cedula",
+      "marker": "student.cedula",
+      "schemaPath": "student.cedula",
+      "label": "Número de cédula",
+      "type": "text"
+    },
+    {
+      "id": "student_contactPhone",
+      "marker": "student.contactPhone",
+      "schemaPath": "student.contactPhone",
+      "label": "Teléfono contacto",
+      "type": "text"
+    },
+    {
+      "id": "student_legalGuardian",
+      "marker": "student.legalGuardian",
+      "schemaPath": "student.legalGuardian",
+      "label": "Encargado legal",
+      "type": "text"
+    },
+    {
+      "id": "student_residence",
+      "marker": "student.residence",
+      "schemaPath": "student.residence",
+      "label": "Lugar de residencia",
+      "type": "text"
+    },
+    {
+      "id": "student_referringTeacher",
+      "marker": "student.referringTeacher",
+      "schemaPath": "student.referringTeacher",
+      "label": "Docente que refiere",
+      "type": "text"
+    },
+    {
+      "id": "student_grade",
+      "marker": "student.grade",
+      "schemaPath": "student.grade",
+      "label": "Grado que cursa",
+      "type": "text"
+    },
+    {
+      "id": "request_educationalSituations",
+      "marker": "request.educationalSituations",
+      "schemaPath": "request.educationalSituations",
+      "label": "Situaciones educativas",
+      "type": "multiline"
+    },
+    {
+      "id": "request_studentSchedule",
+      "marker": "request.studentSchedule",
+      "schemaPath": "request.studentSchedule",
+      "label": "Horario del estudiante",
+      "type": "multiline"
+    },
+    {
+      "id": "svc_aprendizaje",
+      "marker": "svc_aprendizaje",
+      "schemaPath": "request.servicesRequested.aprendizaje",
+      "label": "Checkbox servicio: aprendizaje",
+      "type": "checkbox"
+    },
+    {
+      "id": "svc_discapacidad_intelectual",
+      "marker": "svc_discapacidad_intelectual",
+      "schemaPath": "request.servicesRequested.discapacidad_intelectual",
+      "label": "Checkbox servicio: discapacidad_intelectual",
+      "type": "checkbox"
+    },
+    {
+      "id": "svc_discapacidad_visual",
+      "marker": "svc_discapacidad_visual",
+      "schemaPath": "request.servicesRequested.discapacidad_visual",
+      "label": "Checkbox servicio: discapacidad_visual",
+      "type": "checkbox"
+    },
+    {
+      "id": "svc_audicion_lenguaje",
+      "marker": "svc_audicion_lenguaje",
+      "schemaPath": "request.servicesRequested.audicion_lenguaje",
+      "label": "Checkbox servicio: audicion_lenguaje",
+      "type": "checkbox"
+    },
+    {
+      "id": "svc_terapia_lenguaje",
+      "marker": "svc_terapia_lenguaje",
+      "schemaPath": "request.servicesRequested.terapia_lenguaje",
+      "label": "Checkbox servicio: terapia_lenguaje",
+      "type": "checkbox"
+    },
+    {
+      "id": "svc_discapacidad_multiple",
+      "marker": "svc_discapacidad_multiple",
+      "schemaPath": "request.servicesRequested.discapacidad_multiple",
+      "label": "Checkbox servicio: discapacidad_multiple",
+      "type": "checkbox"
+    },
+    {
+      "id": "resolution_supportDetermination",
+      "marker": "resolution.supportDetermination",
+      "schemaPath": "resolution.supportDetermination",
+      "label": "Determinación del apoyo",
+      "type": "multiline",
+      "required": true
+    },
+    {
+      "id": "viDate1",
+      "marker": "viDate1",
+      "schemaPath": "resolution.viSessionDates[0]",
+      "label": "Fecha Valoración Integral 1",
+      "type": "date"
+    },
+    {
+      "id": "viDate2",
+      "marker": "viDate2",
+      "schemaPath": "resolution.viSessionDates[1]",
+      "label": "Fecha Valoración Integral 2",
+      "type": "date"
+    },
+    {
+      "id": "viDate3",
+      "marker": "viDate3",
+      "schemaPath": "resolution.viSessionDates[2]",
+      "label": "Fecha Valoración Integral 3",
+      "type": "date"
+    },
+    {
+      "id": "viDate4",
+      "marker": "viDate4",
+      "schemaPath": "resolution.viSessionDates[3]",
+      "label": "Fecha Valoración Integral 4",
+      "type": "date"
+    },
+    {
+      "id": "viDate5",
+      "marker": "viDate5",
+      "schemaPath": "resolution.viSessionDates[4]",
+      "label": "Fecha Valoración Integral 5",
+      "type": "date"
+    },
+    {
+      "id": "viDate6",
+      "marker": "viDate6",
+      "schemaPath": "resolution.viSessionDates[5]",
+      "label": "Fecha Valoración Integral 6",
+      "type": "date"
+    },
+    {
+      "id": "resolution_serviceProvisionNotes",
+      "marker": "resolution.serviceProvisionNotes",
+      "schemaPath": "resolution.serviceProvisionNotes",
+      "label": "Consignación del servicio",
+      "type": "multiline"
+    }
+  ],
+  "stats": {
+    "greenRunsFound": 26,
+    "greenRunsReplaced": 25,
+    "skipped": 0,
+    "warnings": []
+  }
+}

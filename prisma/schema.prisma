@@ -40,6 +40,42 @@ model Teacher {
   approvedSchedules      ApprovedSchedule[]
   actionPlans            ActionPlan[]
   institutionalDocuments InstitutionalDocument[]
+  educationalCenters     TeacherEducationalCenter[]
+}
+
+// =============================================
+// EDUCATIONAL CENTER — Centro educativo (desde BSA u otra fuente)
+// Datos institucionales del centro donde cursa el estudiante.
+// =============================================
+model EducationalCenter {
+  id           String   @id @default(cuid())
+  name         String
+  circuit      String   @default("")
+  budgetCode   String   @default("")
+  directorName String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  students     Student[]
+  teachers     TeacherEducationalCenter[]
+
+  @@index([name])
+  @@index([budgetCode])
+}
+
+/** Centros en los que el docente ha registrado estudiantes (p. ej. vía BSA). */
+model TeacherEducationalCenter {
+  id                  String   @id @default(cuid())
+  teacherId           String
+  educationalCenterId String
+  createdAt           DateTime @default(now())
+
+  teacher             Teacher           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  educationalCenter   EducationalCenter @relation(fields: [educationalCenterId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, educationalCenterId])
+  @@index([teacherId])
+  @@index([educationalCenterId])
 }
 
 // =============================================
@@ -235,10 +271,13 @@ model Student {
   guardianName         String?
   guardianPhone        String?
   teacherId            String
+  /** Centro educativo del estudiante (desde BSA u otra fuente). */
+  educationalCenterId  String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
   teacher              Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  educationalCenter    EducationalCenter?   @relation(fields: [educationalCenterId], references: [id], onDelete: SetNull)
   assessment           IntegralAssessment?
   supportPlan          StudentSupportPlan?
   sessions             GeneratedSession[]
@@ -247,8 +286,31 @@ model Student {
   interviews           InterviewRecord[]
   observations         ObservationRecord[]
   expedienteConsultations ExpedienteConsultation[]
+  bsaForm              StudentBsaForm?
 
   @@index([teacherId])
+  @@index([educationalCenterId])
+}
+
+// =============================================
+// STUDENT BSA FORM — Boleta de Solicitud de Apoyo (MEP 2026)
+// Fuente canónica para archivo palabra por palabra e impresión de resolución.
+// Una fila por estudiante; un nuevo upload sobrescribe la anterior.
+// =============================================
+model StudentBsaForm {
+  id              String    @id @default(cuid())
+  studentId       String    @unique
+  /** Versión de la plantilla MEP, ej. "2026" — ver lib/bsa-types.ts */
+  templateVersion String    @default("2026")
+  /** Contenido estructurado — ver lib/bsa-types.ts (StudentBsaFields) */
+  fields          Json      @default("{}")
+  /** Nombre del .docx de origen (referencia; no se almacena el archivo). */
+  sourceFileName  String?
+  uploadedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  student         Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 // =============================================

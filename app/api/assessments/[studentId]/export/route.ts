@@ -53,6 +53,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     where: { id: studentId, teacherId: token.teacherId as string },
     include: {
       teacher: true,
+      educationalCenter: true,
       assessment: {
         include: { curricularSubjects: { orderBy: { sortOrder: 'asc' } } },
       },
@@ -65,6 +66,7 @@ export async function GET(req: NextRequest, { params }: Params) {
 
   const assessment = student.assessment
   const teacher    = student.teacher
+  const center     = student.educationalCenter
 
   // ── 2. Formatear fechas ──
   function fmtDate(d: Date | null | undefined): string {
@@ -99,8 +101,8 @@ export async function GET(req: NextRequest, { params }: Params) {
 
     // Docente / centro
     teacherName:          teacher.name,
-    centerName:           teacher.centerName ?? '',
-    circuit:              teacher.circuit    ?? '',
+    centerName:           center?.name ?? teacher.centerName ?? '',
+    circuit:              center?.circuit ?? teacher.circuit ?? '',
     specialty:            teacher.specialty  ?? 'Problemas de Aprendizaje',
     classroomTeacherName: student.classroomTeacherName ?? '',
 

@@ -13,7 +13,7 @@
 - **Base de datos**: PostgreSQL vía Prisma (ORM).
 - **Auth**: NextAuth v4 con CredentialsProvider (bcryptjs), JWT; `teacherId` en el token.
 - **UI**: Tailwind CSS v4. Diseño mobile-first (max-w-lg / max-w-2xl).
-- **Exportación**: librería `docx` para exportar Word. Lógica en `lib/word-export.ts` + `lib/report-engine.ts`.
+- **Exportación**: librería `docx` para exportar Word (generación programática). **En migración:** pipeline de plantillas OOXML oficiales — ver [`docx-template-pipeline.md`](./docx-template-pipeline.md).
 - **Deploy**: Vercel (rama `main` del repo `AndreyBlanco/kata` en GitHub).
 - **Base de datos en producción**: Prisma Postgres (db.prisma.io).
 

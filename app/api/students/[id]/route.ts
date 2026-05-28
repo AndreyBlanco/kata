@@ -22,6 +22,15 @@ export async function GET(
       teacher: {
         select: { name: true, centerName: true },
       },
+      educationalCenter: {
+        select: {
+          id: true,
+          name: true,
+          circuit: true,
+          budgetCode: true,
+          directorName: true,
+        },
+      },
     },
   })
 
@@ -29,11 +38,10 @@ export async function GET(
     return NextResponse.json({ error: 'Estudiante no encontrado' }, { status: 404 })
   }
 
-  // Return flat object with teacher info for convenience
   return NextResponse.json({
     ...student,
     teacherName: student.teacher.name,
-    centerName: student.teacher.centerName,
+    centerName: student.educationalCenter?.name ?? student.teacher.centerName,
   })
 }
 
